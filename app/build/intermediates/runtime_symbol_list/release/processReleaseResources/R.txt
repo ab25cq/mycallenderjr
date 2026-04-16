@@ -1,0 +1,6 @@
+int drawable ball 0x7f010000
+int drawable food 0x7f010001
+int drawable ic_calendar_launcher 0x7f010002
+int drawable pet 0x7f010003
+int drawable title 0x7f010004
+int drawable walking 0x7f010005

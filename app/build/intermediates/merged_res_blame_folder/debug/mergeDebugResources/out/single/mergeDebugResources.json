@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_title.jpg.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/title.jpg"
+    },
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_ic_calendar_launcher.xml.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/ic_calendar_launcher.xml"
+    },
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_walking.jpg.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/walking.jpg"
+    },
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_food.jpg.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/food.jpg"
+    },
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_ball.jpg.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/ball.jpg"
+    },
+    {
+        "merged": "com.example.myhelloworld.app-debug-4:/drawable_pet.jpg.flat",
+        "source": "com.example.myhelloworld.app-main-6:/drawable/pet.jpg"
+    }
+]

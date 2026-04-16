@@ -1,0 +1,6 @@
+com.mycallenderjr:drawable/walking = 0x7f010005
+com.mycallenderjr:drawable/pet = 0x7f010003
+com.mycallenderjr:drawable/title = 0x7f010004
+com.mycallenderjr:drawable/ic_calendar_launcher = 0x7f010002
+com.mycallenderjr:drawable/food = 0x7f010001
+com.mycallenderjr:drawable/ball = 0x7f010000

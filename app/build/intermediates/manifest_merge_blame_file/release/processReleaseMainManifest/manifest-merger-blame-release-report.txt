@@ -1,0 +1,44 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.mycallenderjr"
+4    android:versionCode="2"
+5    android:versionName="1.0.1" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.READ_CALENDAR" />
+11-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:4:5-72
+11-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:4:22-69
+12    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+12-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:5:5-73
+12-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:5:22-70
+13
+14    <application
+14-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:6:5-19:19
+15        android:extractNativeLibs="true"
+16        android:icon="@drawable/ic_calendar_launcher"
+16-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:7:9-54
+17        android:label="カレンダー" >
+17-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:8:9-30
+18        <activity
+18-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:10:9-17:20
+19            android:name="com.example.myhelloworld.MainActivity"
+19-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:11:13-41
+20            android:exported="true" >
+20-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:12:13-36
+21            <intent-filter>
+21-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:13:13-16:29
+22                <action android:name="android.intent.action.MAIN" />
+22-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:14:17-69
+22-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:14:25-66
+23
+24                <category android:name="android.intent.category.LAUNCHER" />
+24-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:15:17-77
+24-->/home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:15:27-74
+25            </intent-filter>
+26        </activity>
+27    </application>
+28
+29</manifest>

@@ -1,0 +1,8 @@
+R_DEF: Internal format may change without notice
+local
+drawable ball
+drawable food
+drawable ic_calendar_launcher
+drawable pet
+drawable title
+drawable walking

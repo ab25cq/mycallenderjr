@@ -1,0 +1,55 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:2:1-21:12
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:2:1-21:12
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:2:1-21:12
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:2:1-21:12
+	package
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	android:versionName
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	android:versionCode
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.READ_CALENDAR
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:4:5-72
+	android:name
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:4:22-69
+uses-permission#android.permission.WRITE_CALENDAR
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:5:5-73
+	android:name
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:5:22-70
+application
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:6:5-19:19
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:6:5-19:19
+	android:extractNativeLibs
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	android:label
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:8:9-30
+	android:icon
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:7:9-54
+activity#com.example.myhelloworld.MainActivity
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:10:9-17:20
+	android:exported
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:12:13-36
+	android:name
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:11:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:13:13-16:29
+action#android.intent.action.MAIN
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:14:17-69
+	android:name
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:14:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:15:17-77
+	android:name
+		ADDED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml:15:27-74
+uses-sdk
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/ab25cq/MyHelloWorld2/app/src/main/AndroidManifest.xml
