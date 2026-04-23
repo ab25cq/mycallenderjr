@@ -53,4 +53,4 @@ When all four variables are set, the script builds a signed release APK and copi
 
 # join tester
 
-tps://play.google.com/apps/internaltest/4701549635617814279h
+https://play.google.com/apps/internaltest/4701549635617814279h
