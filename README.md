@@ -50,3 +50,7 @@ When all four variables are set, the script builds a signed release APK and copi
 ```text
 ./mycallenderjr.apk
 ```
+
+# join tester
+
+tps://play.google.com/apps/internaltest/4701549635617814279h
