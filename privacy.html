@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyCallenderJr プライバシーポリシー</title>
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --card: #fffdf8;
+      --text: #1f2933;
+      --muted: #5b6875;
+      --line: #d7d1c7;
+      --accent: #1e6f5c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+      line-height: 1.8;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(30, 111, 92, 0.12), transparent 28%),
+        linear-gradient(180deg, #f4efe6 0%, var(--bg) 100%);
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero,
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(31, 41, 51, 0.05);
+    }
+
+    .hero {
+      padding: 28px 24px;
+      margin-bottom: 20px;
+    }
+
+    section {
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    h1,
+    h2 {
+      margin: 0 0 12px;
+      line-height: 1.4;
+    }
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+
+    p,
+    li {
+      margin: 0 0 10px;
+    }
+
+    ul {
+      padding-left: 1.2rem;
+      margin: 0;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .note {
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 20px 14px 40px;
+      }
+
+      .hero,
+      section {
+        padding: 18px 16px;
+        border-radius: 14px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <h1>MyCallenderJr プライバシーポリシー</h1>
+      <p class="meta">最終更新日: 2026年4月24日</p>
+      <p>
+        MyCallenderJr（以下「本アプリ」といいます）は、端末のカレンダー情報を表示・編集し、
+        ユーザーが作成した TODO を端末内で管理するためのアプリです。
+        本ポリシーは、本アプリにおける情報の取得、利用、保存および第三者提供の取扱いを説明するものです。
+      </p>
+    </div>
+
+    <section>
+      <h2>1. 取得する情報</h2>
+      <ul>
+        <li>端末のカレンダー情報: カレンダーID、カレンダー名、アカウント名、アカウント種別、予定のタイトル、説明、開始日時、終了日時、終日設定</li>
+        <li>本アプリ内の設定情報: 選択したカレンダーID、表示順などの設定情報</li>
+        <li>本アプリ内の TODO 情報: ユーザーが入力した TODO のタイトルおよび内部識別子</li>
+        <li>ユーザーが任意に選択したバックアップファイル: TODO のエクスポート先またはインポート元としてユーザーが明示的に指定した JSON ファイル</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. 利用目的</h2>
+      <ul>
+        <li>端末カレンダーの予定を表示し、編集・追加・削除するため</li>
+        <li>ユーザーが選択した同期先カレンダーを記憶するため</li>
+        <li>TODO を端末内で保存、表示、並び替え、バックアップおよび復元するため</li>
+        <li>アプリの基本機能を提供し、操作性を維持するため</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. 権限の利用について</h2>
+      <p>
+        本アプリは、以下の Android 権限を利用します。
+      </p>
+      <ul>
+        <li><strong>READ_CALENDAR</strong>: 端末のカレンダー情報および予定を表示するため</li>
+        <li><strong>WRITE_CALENDAR</strong>: 端末のカレンダーに予定を追加、更新、削除するため</li>
+      </ul>
+      <p class="note">
+        これらの権限は、本アプリのカレンダー機能の提供に必要な範囲でのみ使用されます。
+      </p>
+    </section>
+
+    <section>
+      <h2>4. 情報の保存場所</h2>
+      <p>
+        本アプリが扱う設定情報および TODO 情報は、主にユーザーの端末内に保存されます。
+        また、カレンダーの予定情報は Android のカレンダープロバイダを通じて端末上のカレンダーに保存されます。
+      </p>
+      <p>
+        ユーザーが TODO のエクスポート機能を利用した場合、指定した保存先ファイルに TODO 情報が書き出されます。
+        インポート機能を利用した場合は、ユーザーが選択したファイルの内容を読み込みます。
+      </p>
+    </section>
+
+    <section>
+      <h2>5. 外部送信および第三者提供</h2>
+      <p>
+        本アプリ自体は、取得した情報を開発者のサーバーへ送信しません。
+        また、広告配信、アクセス解析、クラッシュ解析等のための外部 SDK は組み込んでいません。
+      </p>
+      <p>
+        ただし、ユーザーが本アプリで操作するカレンダーが Google カレンダー等の外部アカウントと端末側で同期設定されている場合、
+        予定情報は当該カレンダー提供事業者の仕組みにより同期されることがあります。
+        これらの同期は、各サービス提供事業者のプライバシーポリシーおよびユーザー自身の端末設定に従って行われます。
+      </p>
+    </section>
+
+    <section>
+      <h2>6. 情報の削除方法</h2>
+      <ul>
+        <li>予定情報は、本アプリまたは端末のカレンダーアプリから削除できます</li>
+        <li>TODO 情報は、本アプリ内の操作により削除できます</li>
+        <li>本アプリをアンインストールした場合、本アプリ内に保存された設定情報および TODO 情報は端末から削除されます</li>
+        <li>ユーザーが書き出したバックアップファイルは、保存先で別途削除してください</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>7. 安全管理</h2>
+      <p>
+        本アプリは、必要最小限の権限のみを利用し、端末内で情報を取り扱う設計を採用しています。
+        ただし、端末の紛失、第三者による端末利用、同期先サービスの管理状態などに起因するリスクについては、
+        ユーザー自身でも端末のロック設定、アカウント管理、バックアップファイルの管理を行ってください。
+      </p>
+    </section>
+
+    <section>
+      <h2>8. 子どもの個人情報について</h2>
+      <p>
+        本アプリは、特定の年齢層を対象として個人情報を意図的に収集するものではありません。
+        保護者の方が、お子様による利用に関して懸念を持たれた場合は、端末の権限設定および同期設定をご確認ください。
+      </p>
+    </section>
+
+    <section>
+      <h2>9. 改定</h2>
+      <p>
+        本ポリシーは、法令の改正や本アプリの機能変更に応じて改定されることがあります。
+        重要な変更がある場合は、最新のポリシーを本ページに掲載します。
+      </p>
+    </section>
+
+    <section>
+      <h2>10. お問い合わせ</h2>
+      <p>
+        本アプリに関するお問い合わせは、Google Play ストアのデベロッパー連絡先をご利用ください。
+      </p>
+    </section>
+  </main>
+</body>
+</html>
