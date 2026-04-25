@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -48,6 +49,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends Activity {
+    private static final String TAG = "MyCalendarMain";
     private static final int REQUEST_CALENDAR_PERMISSIONS = 1001;
     private static final int REQUEST_EXPORT_TODOS = 2001;
     private static final int REQUEST_IMPORT_TODOS = 2002;
@@ -60,11 +62,13 @@ public class MainActivity extends Activity {
     private final List<LocalTodoRepository.LocalTodo> todosForSelectedDay = new ArrayList<>();
     private final List<ScheduleListAdapter.ScheduleListItem> selectedDayItems = new ArrayList<>();
     private final List<MonthDayCell> monthDayCells = new ArrayList<>();
+    private final Map<Long, List<CalendarRepository.CalendarEvent>> monthEventsByDay = new HashMap<>();
 
     private TextView permissionView;
     private TextView monthLabelView;
     private TextView selectedDateView;
     private GridView monthGridView;
+    private ListView scheduleListView;
     private ScheduleListAdapter scheduleListAdapter;
     private MonthCalendarAdapter monthCalendarAdapter;
 
@@ -77,6 +81,7 @@ public class MainActivity extends Activity {
     private float scheduleTouchDownX;
     private float scheduleTouchDownY;
     private int scheduleTouchDownPosition = AdapterView.INVALID_POSITION;
+    private boolean resetScheduleListPosition;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -271,19 +276,19 @@ public class MainActivity extends Activity {
             MonthDayCell cell = monthDayCells.get(position);
             selectedDayMillis = cell.dayStartMillis;
             selectedEventId = -1L;
+            resetScheduleListPosition = true;
             visibleMonth.setTimeInMillis(cell.dayStartMillis);
             resetToMonthStart(visibleMonth);
-            refreshMonthGrid();
-            refreshEventList();
+            refreshAllData();
         });
         monthGridView.setOnItemLongClickListener((parent, view, position, id) -> {
             MonthDayCell cell = monthDayCells.get(position);
             selectedDayMillis = cell.dayStartMillis;
             selectedEventId = -1L;
+            resetScheduleListPosition = true;
             visibleMonth.setTimeInMillis(cell.dayStartMillis);
             resetToMonthStart(visibleMonth);
-            refreshMonthGrid();
-            refreshEventList();
+            refreshAllData();
             showEventDialog(null);
             return true;
         });
@@ -302,7 +307,7 @@ public class MainActivity extends Activity {
         listContainerParams.weight = 1f;
         listContainer.setLayoutParams(listContainerParams);
 
-        ListView scheduleListView = new ListView(this);
+        scheduleListView = new ListView(this);
         scheduleListView.setDividerHeight(dp(4));
         scheduleListView.setSelector(android.R.color.transparent);
         scheduleListAdapter = new ScheduleListAdapter(this, selectedDayItems);
@@ -461,13 +466,13 @@ public class MainActivity extends Activity {
 
         monthDayCells.clear();
         long gridStartMillis = getGridStartMillis();
-        Map<Long, List<CalendarRepository.CalendarEvent>> eventsByDay = new HashMap<>();
+        monthEventsByDay.clear();
 
         if (hasCalendarPermissions() && selectedCalendarId >= 0L) {
             long gridEndMillis = gridStartMillis + (35L * DAY_IN_MILLIS);
             List<CalendarRepository.CalendarEvent> monthEvents =
                     CalendarRepository.getEventsForRange(this, selectedCalendarId, gridStartMillis, gridEndMillis);
-            distributeEventsByDay(monthEvents, gridStartMillis, gridEndMillis, eventsByDay);
+            distributeEventsByDay(monthEvents, gridStartMillis, gridEndMillis, monthEventsByDay);
         }
 
         Calendar dayCursor = Calendar.getInstance();
@@ -478,7 +483,7 @@ public class MainActivity extends Activity {
             long dayStartMillis = dayCursor.getTimeInMillis();
             boolean isCurrentMonth = dayCursor.get(Calendar.MONTH) == visibleMonth.get(Calendar.MONTH)
                     && dayCursor.get(Calendar.YEAR) == visibleMonth.get(Calendar.YEAR);
-            List<CalendarRepository.CalendarEvent> dayEvents = eventsByDay.get(dayStartMillis);
+            List<CalendarRepository.CalendarEvent> dayEvents = monthEventsByDay.get(dayStartMillis);
             monthDayCells.add(new MonthDayCell(
                     dayStartMillis,
                     String.valueOf(dayCursor.get(Calendar.DAY_OF_MONTH)),
@@ -523,20 +528,13 @@ public class MainActivity extends Activity {
             return "";
         }
 
-        List<CalendarRepository.CalendarEvent> orderedEvents = EventOrderRepository.sortEvents(
-                this,
-                selectedCalendarId,
-                dayStartMillis,
-                dayEvents
-        );
-
         StringBuilder builder = new StringBuilder();
-        int visibleCount = Math.min(3, orderedEvents.size());
+        int visibleCount = Math.min(3, dayEvents.size());
         for (int i = 0; i < visibleCount; i++) {
             if (i > 0) {
                 builder.append('\n');
             }
-            builder.append(orderedEvents.get(i).title);
+            builder.append(dayEvents.get(i).title);
         }
         return builder.toString();
     }
@@ -553,17 +551,19 @@ public class MainActivity extends Activity {
         }
 
         eventsForSelectedDay.clear();
+        // The selected-day list should always reflect the latest provider data,
+        // even if the month grid still has older cached cell summaries.
         eventsForSelectedDay.addAll(CalendarRepository.getEventsForDay(this, selectedCalendarId, selectedDayMillis));
-        List<CalendarRepository.CalendarEvent> orderedEvents = EventOrderRepository.sortEvents(
-                this,
-                selectedCalendarId,
-                selectedDayMillis,
-                eventsForSelectedDay
-        );
-        eventsForSelectedDay.clear();
-        eventsForSelectedDay.addAll(orderedEvents);
         todosForSelectedDay.clear();
         todosForSelectedDay.addAll(LocalTodoRepository.getTodos(this));
+
+        List<CalendarRepository.CalendarEvent> cachedEvents = monthEventsByDay.get(selectedDayMillis);
+        Log.d(TAG, "refreshEventList day=" + selectedDayMillis
+                + " calendarId=" + selectedCalendarId
+                + " providerCount=" + eventsForSelectedDay.size()
+                + " cachedCount=" + (cachedEvents == null ? 0 : cachedEvents.size())
+                + " providerEvents=" + summarizeEvents(eventsForSelectedDay)
+                + " cachedEvents=" + summarizeEvents(cachedEvents));
 
         if (!containsEventId(selectedEventId)) {
             selectedEventId = eventsForSelectedDay.isEmpty() ? -1L : eventsForSelectedDay.get(0).id;
@@ -594,7 +594,34 @@ public class MainActivity extends Activity {
         }
 
         scheduleListAdapter.setSelectedEventId(selectedEventId);
-        scheduleListAdapter.notifyDataSetChanged();
+        scheduleListAdapter.replaceItems(selectedDayItems);
+        if (resetScheduleListPosition && scheduleListView != null) {
+            scheduleListView.post(() -> scheduleListView.setSelection(0));
+            resetScheduleListPosition = false;
+        }
+    }
+
+    private String summarizeEvents(List<CalendarRepository.CalendarEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder builder = new StringBuilder("[");
+        int limit = Math.min(events.size(), 8);
+        for (int i = 0; i < limit; i++) {
+            CalendarRepository.CalendarEvent event = events.get(i);
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append("{id=").append(event.id)
+                    .append(",eventId=").append(event.eventId)
+                    .append(",title=").append(event.title)
+                    .append("}");
+        }
+        if (events.size() > limit) {
+            builder.append(", ... total=").append(events.size());
+        }
+        builder.append(']');
+        return builder.toString();
     }
 
     private void showCalendarPicker() {
@@ -753,7 +780,7 @@ public class MainActivity extends Activity {
                 if (editing) {
                     success = CalendarRepository.updateEvent(
                             this,
-                            existingEvent.id,
+                            existingEvent.eventId,
                             selectedCalendarId,
                             title,
                             description,
@@ -773,7 +800,7 @@ public class MainActivity extends Activity {
                     );
                     success = newEventId >= 0L;
                     if (success) {
-                        selectedEventId = newEventId;
+                        selectedEventId = -1L;
                     }
                 }
 
@@ -915,7 +942,7 @@ public class MainActivity extends Activity {
     }
 
     private void showEventActionsDialog(CalendarRepository.CalendarEvent event) {
-        String[] actions = {"編集", "上へ移動", "下へ移動", "削除"};
+        String[] actions = {"編集", "削除"};
         new AlertDialog.Builder(this)
                 .setTitle(event.title)
                 .setItems(actions, (dialog, which) -> {
@@ -924,26 +951,8 @@ public class MainActivity extends Activity {
                         return;
                     }
 
-                    if (which == 3) {
+                    if (which == 1) {
                         showDeleteEventDialog(event);
-                        return;
-                    }
-
-                    int offset = which == 1 ? -1 : 1;
-                    boolean moved = EventOrderRepository.moveEvent(
-                            this,
-                            selectedCalendarId,
-                            selectedDayMillis,
-                            eventsForSelectedDay,
-                            event.id,
-                            offset
-                    );
-                    if (moved) {
-                        refreshMonthGrid();
-                        refreshEventList();
-                        Toast.makeText(this, "予定の順番を変更しました", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "これ以上は移動できません", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("キャンセル", null)
@@ -965,17 +974,33 @@ public class MainActivity extends Activity {
                 .setTitle("予定を削除")
                 .setMessage("「" + event.title + "」を削除しますか。")
                 .setPositiveButton("削除", (dialog, which) -> {
-                    boolean deleted = CalendarRepository.deleteEvent(this, event.id);
+                    boolean deleted;
+                    try {
+                        deleted = CalendarRepository.deleteEvent(this, event, findCalendarInfo(event.calendarId));
+                    } catch (RuntimeException e) {
+                        Log.e(TAG, "delete dialog failed for eventId=" + event.eventId, e);
+                        deleted = false;
+                    }
                     if (deleted) {
                         selectedEventId = -1L;
                         refreshMonthGrid();
                         refreshEventList();
+                        Toast.makeText(this, "予定を削除しました", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(this, "予定の削除に失敗しました", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setNegativeButton("キャンセル", null)
                 .show();
+    }
+
+    private CalendarRepository.CalendarInfo findCalendarInfo(long calendarId) {
+        for (CalendarRepository.CalendarInfo info : writableCalendars) {
+            if (info.id == calendarId) {
+                return info;
+            }
+        }
+        return null;
     }
 
     private boolean handleMonthGridTouch(MotionEvent event) {
@@ -1008,6 +1033,7 @@ public class MainActivity extends Activity {
     private void jumpToToday() {
         selectedDayMillis = startOfDay(System.currentTimeMillis());
         selectedEventId = -1L;
+        resetScheduleListPosition = true;
         visibleMonth.setTimeInMillis(selectedDayMillis);
         resetToMonthStart(visibleMonth);
         refreshMonthGrid();

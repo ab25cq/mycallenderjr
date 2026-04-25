@@ -8,12 +8,17 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.CalendarContract;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TimeZone;
 
 public final class CalendarRepository {
+    private static final String TAG = "MyCalendarRepo";
+    private static final long DAY_IN_MILLIS = 24L * 60L * 60L * 1000L;
+    private static final long INSTANCE_QUERY_PADDING_MILLIS = 31L * DAY_IN_MILLIS;
+
     private CalendarRepository() {
     }
 
@@ -74,7 +79,12 @@ public final class CalendarRepository {
 
     public static List<CalendarEvent> getEventsForDay(Context context, long calendarId, long dayStartMillis) {
         long dayEndMillis = dayStartMillis + 24L * 60L * 60L * 1000L;
-        return getEventsForRange(context, calendarId, dayStartMillis, dayEndMillis);
+        List<CalendarEvent> events = getEventsForRange(context, calendarId, dayStartMillis, dayEndMillis);
+        Log.d(TAG, "getEventsForDay calendarId=" + calendarId
+                + " dayStart=" + dayStartMillis
+                + " count=" + events.size()
+                + " events=" + summarizeEvents(events));
+        return events;
     }
 
     public static List<CalendarEvent> getEventsForRange(
@@ -87,29 +97,31 @@ public final class CalendarRepository {
         ContentResolver resolver = context.getContentResolver();
 
         String[] projection = {
-                CalendarContract.Events._ID,
-                CalendarContract.Events.CALENDAR_ID,
-                CalendarContract.Events.TITLE,
-                CalendarContract.Events.DESCRIPTION,
-                CalendarContract.Events.DTSTART,
-                CalendarContract.Events.DTEND,
-                CalendarContract.Events.ALL_DAY
+                CalendarContract.Instances._ID,
+                CalendarContract.Instances.EVENT_ID,
+                CalendarContract.Instances.CALENDAR_ID,
+                CalendarContract.Instances.TITLE,
+                CalendarContract.Instances.DESCRIPTION,
+                CalendarContract.Instances.BEGIN,
+                CalendarContract.Instances.END,
+                CalendarContract.Instances.ALL_DAY
         };
 
-        String selection = CalendarContract.Events.CALENDAR_ID + " = ? AND "
-                + CalendarContract.Events.DELETED + " = 0 AND "
-                + CalendarContract.Events.DTSTART + " < ? AND "
-                + CalendarContract.Events.DTEND + " > ?";
+        String selection = CalendarContract.Instances.CALENDAR_ID + " = ?";
         String[] selectionArgs = {
-                String.valueOf(calendarId),
-                String.valueOf(rangeEndMillis),
-                String.valueOf(rangeStartMillis)
+                String.valueOf(calendarId)
         };
-        String sortOrder = CalendarContract.Events.ALL_DAY + " DESC, "
-                + CalendarContract.Events.DTSTART + " ASC";
+        String sortOrder = CalendarContract.Instances.ALL_DAY + " DESC, "
+                + CalendarContract.Instances.BEGIN + " ASC";
+
+        long queryStartMillis = Math.max(0L, rangeStartMillis - INSTANCE_QUERY_PADDING_MILLIS);
+        long queryEndMillis = rangeEndMillis + INSTANCE_QUERY_PADDING_MILLIS;
+        Uri.Builder builder = CalendarContract.Instances.CONTENT_URI.buildUpon();
+        ContentUris.appendId(builder, queryStartMillis);
+        ContentUris.appendId(builder, queryEndMillis);
 
         Cursor cursor = resolver.query(
-                CalendarContract.Events.CONTENT_URI,
+                builder.build(),
                 projection,
                 selection,
                 selectionArgs,
@@ -121,12 +133,14 @@ public final class CalendarRepository {
         }
 
         try {
-            int idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events._ID);
-            int titleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE);
-            int descriptionIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION);
-            int startIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART);
-            int endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTEND);
-            int allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY);
+            int idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances._ID);
+            int eventIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID);
+            int titleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.TITLE);
+            int descriptionIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.DESCRIPTION);
+            int startIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.BEGIN);
+            int endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.END);
+            int allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY);
+            int calendarIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.CALENDAR_ID);
 
             while (cursor.moveToNext()) {
                 long startMillis = cursor.getLong(startIndex);
@@ -134,13 +148,17 @@ public final class CalendarRepository {
                 if (endMillis == startMillis) {
                     endMillis = startMillis + 60L * 60L * 1000L;
                 }
+                if (startMillis >= rangeEndMillis || endMillis <= rangeStartMillis) {
+                    continue;
+                }
 
                 String title = cursor.getString(titleIndex);
                 String description = cursor.getString(descriptionIndex);
 
                 events.add(new CalendarEvent(
                         cursor.getLong(idIndex),
-                        calendarId,
+                        cursor.getLong(eventIdIndex),
+                        cursor.getLong(calendarIdIndex),
                         TextUtils.isEmpty(title) ? "(無題)" : title,
                         description == null ? "" : description,
                         startMillis,
@@ -153,6 +171,31 @@ public final class CalendarRepository {
         }
 
         return events;
+    }
+
+    private static String summarizeEvents(List<CalendarEvent> events) {
+        if (events.isEmpty()) {
+            return "[]";
+        }
+        StringBuilder builder = new StringBuilder("[");
+        int limit = Math.min(events.size(), 8);
+        for (int i = 0; i < limit; i++) {
+            CalendarEvent event = events.get(i);
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append("{id=").append(event.id)
+                    .append(",eventId=").append(event.eventId)
+                    .append(",title=").append(event.title)
+                    .append(",start=").append(event.startMillis)
+                    .append(",end=").append(event.endMillis)
+                    .append("}");
+        }
+        if (events.size() > limit) {
+            builder.append(", ... total=").append(events.size());
+        }
+        builder.append(']');
+        return builder.toString();
     }
 
     public static long insertEvent(
@@ -184,9 +227,41 @@ public final class CalendarRepository {
         return context.getContentResolver().update(uri, values, null, null) > 0;
     }
 
-    public static boolean deleteEvent(Context context, long eventId) {
-        Uri uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
-        return context.getContentResolver().delete(uri, null, null) > 0;
+    public static boolean deleteEvent(Context context, CalendarEvent event, CalendarInfo calendarInfo) {
+        try {
+            Uri eventUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId);
+            int deletedRows = context.getContentResolver().delete(eventUri, null, null);
+            if (deletedRows > 0) {
+                return true;
+            }
+
+            if (calendarInfo == null || TextUtils.isEmpty(calendarInfo.accountName) || TextUtils.isEmpty(calendarInfo.accountType)) {
+                Log.w(TAG, "deleteEvent affected no rows for eventId=" + event.eventId + " calendarId=" + event.calendarId);
+                return false;
+            }
+
+            try {
+                Uri syncAdapterUri = CalendarContract.Events.CONTENT_URI.buildUpon()
+                        .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+                        .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, calendarInfo.accountName)
+                        .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, calendarInfo.accountType)
+                        .build();
+                Uri syncAdapterEventUri = ContentUris.withAppendedId(syncAdapterUri, event.eventId);
+                int syncDeletedRows = context.getContentResolver().delete(syncAdapterEventUri, null, null);
+                if (syncDeletedRows > 0) {
+                    return true;
+                }
+            } catch (RuntimeException e) {
+                Log.w(TAG, "sync-adapter delete failed for eventId=" + event.eventId, e);
+            }
+
+            Log.w(TAG, "deleteEvent affected no rows after fallback for eventId=" + event.eventId
+                    + " calendarId=" + event.calendarId);
+            return false;
+        } catch (RuntimeException e) {
+            Log.e(TAG, "deleteEvent failed for eventId=" + event.eventId + " calendarId=" + event.calendarId, e);
+            return false;
+        }
     }
 
     private static ContentValues buildEventValues(
@@ -229,6 +304,7 @@ public final class CalendarRepository {
 
     public static final class CalendarEvent {
         public final long id;
+        public final long eventId;
         public final long calendarId;
         public final String title;
         public final String description;
@@ -238,6 +314,7 @@ public final class CalendarRepository {
 
         CalendarEvent(
                 long id,
+                long eventId,
                 long calendarId,
                 String title,
                 String description,
@@ -246,6 +323,7 @@ public final class CalendarRepository {
                 boolean allDay
         ) {
             this.id = id;
+            this.eventId = eventId;
             this.calendarId = calendarId;
             this.title = title;
             this.description = description;

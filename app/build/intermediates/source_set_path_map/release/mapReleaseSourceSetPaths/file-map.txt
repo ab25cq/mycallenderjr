@@ -1,7 +1,7 @@
-com.example.myhelloworld.app-pngs-0 /home/ab25cq/MyHelloWorld2/app/build/generated/res/pngs/release
-com.example.myhelloworld.app-resValues-1 /home/ab25cq/MyHelloWorld2/app/build/generated/res/resValues/release
-com.example.myhelloworld.app-packageReleaseResources-2 /home/ab25cq/MyHelloWorld2/app/build/intermediates/incremental/release/packageReleaseResources/merged.dir
-com.example.myhelloworld.app-packageReleaseResources-3 /home/ab25cq/MyHelloWorld2/app/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
-com.example.myhelloworld.app-release-4 /home/ab25cq/MyHelloWorld2/app/build/intermediates/merged_res/release/mergeReleaseResources
-com.example.myhelloworld.app-main-5 /home/ab25cq/MyHelloWorld2/app/src/main/res
-com.example.myhelloworld.app-release-6 /home/ab25cq/MyHelloWorld2/app/src/release/res
+com.example.myhelloworld.app-pngs-0 /home/ab25cq/mycallenderjr/app/build/generated/res/pngs/release
+com.example.myhelloworld.app-resValues-1 /home/ab25cq/mycallenderjr/app/build/generated/res/resValues/release
+com.example.myhelloworld.app-packageReleaseResources-2 /home/ab25cq/mycallenderjr/app/build/intermediates/incremental/release/packageReleaseResources/merged.dir
+com.example.myhelloworld.app-packageReleaseResources-3 /home/ab25cq/mycallenderjr/app/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
+com.example.myhelloworld.app-release-4 /home/ab25cq/mycallenderjr/app/build/intermediates/merged_res/release/mergeReleaseResources
+com.example.myhelloworld.app-main-5 /home/ab25cq/mycallenderjr/app/src/main/res
+com.example.myhelloworld.app-release-6 /home/ab25cq/mycallenderjr/app/src/release/res

@@ -51,6 +51,10 @@ When all four variables are set, the script builds a signed release APK and copi
 ./mycallenderjr.apk
 ```
 
+or 
+
+use codex for build instead.
+
 # join google play tester
 
-https://play.google.com/apps/internaltest/4701549635617814279h
+https://play.google.com/apps/internaltest/4701549635617814279

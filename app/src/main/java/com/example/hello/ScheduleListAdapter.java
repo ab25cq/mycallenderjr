@@ -11,6 +11,7 @@ import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -24,16 +25,22 @@ public class ScheduleListAdapter extends BaseAdapter {
     private static final int ITEM_KIND_MESSAGE = 3;
 
     private final Context context;
-    private final List<ScheduleListItem> items;
+    private final List<ScheduleListItem> items = new ArrayList<>();
     private long selectedEventId = -1L;
 
     public ScheduleListAdapter(Context context, List<ScheduleListItem> items) {
         this.context = context;
-        this.items = items;
+        replaceItems(items);
     }
 
     public void setSelectedEventId(long selectedEventId) {
         this.selectedEventId = selectedEventId;
+    }
+
+    public void replaceItems(List<ScheduleListItem> newItems) {
+        items.clear();
+        items.addAll(newItems);
+        notifyDataSetChanged();
     }
 
     @Override
