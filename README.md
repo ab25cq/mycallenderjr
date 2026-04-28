@@ -58,6 +58,6 @@ use codex for build instead.
 # join google play tester
 
 
-htps://play.google.com/apps/testing/com.mycallenderjr
+https://play.google.com/apps/testing/com.mycallenderjr
 
 https://play.google.com/store/apps/details?id=com.mycallenderjr
