@@ -62,4 +62,4 @@ https://play.google.com/apps/testing/com.mycallenderjr
 
 https://play.google.com/store/apps/details?id=com.mycallenderjr
 
-mycallenderjr@googlegroups.com
+https://groups.google.com/g/mycallender
