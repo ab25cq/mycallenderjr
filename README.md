@@ -61,3 +61,5 @@ use codex for build instead.
 https://play.google.com/apps/testing/com.mycallenderjr
 
 https://play.google.com/store/apps/details?id=com.mycallenderjr
+
+mycallenderjr@googlegroups.com
