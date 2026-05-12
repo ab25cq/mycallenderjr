@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "/home/ab25cq/.gradle/daemon/8.7/com.example.myhelloworld.app-mergeReleaseResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/ab25cq/mycallenderjr/app/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "45",
+                        "endOffsets": "96"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.example.myhelloworld.app-mergeReleaseResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "/home/ab25cq/mycallenderjr/app/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

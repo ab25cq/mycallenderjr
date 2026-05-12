@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.myhelloworld.app-debug-4:/values-ja-rJP_values-ja-rJP.arsc.flat",
+            "map": [
+                {
+                    "source": "/home/ab25cq/mycallenderjr/app/src/main/res/values-ja-rJP/strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "42",
+                        "endOffsets": "93"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "com.example.myhelloworld.app-debug-4:/values_values.arsc.flat",
+            "map": [
+                {
+                    "source": "/home/ab25cq/mycallenderjr/app/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "45",
+                        "endOffsets": "96"
+                    }
+                }
+            ]
+        }
+    ]
+}

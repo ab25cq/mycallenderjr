@@ -6,3 +6,4 @@ drawable ic_calendar_launcher
 drawable pet
 drawable title
 drawable walking
+string app_name

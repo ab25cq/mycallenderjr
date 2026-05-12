@@ -30,7 +30,7 @@ public final class LocalTodoRepository {
                 JSONObject item = jsonArray.getJSONObject(i);
                 todos.add(new LocalTodo(
                         item.optString("id"),
-                        item.optString("title", "(無題)")
+                        item.optString("title", AppText.untitled())
                 ));
             }
         } catch (JSONException ignored) {
@@ -131,7 +131,7 @@ public final class LocalTodoRepository {
             if (TextUtils.isEmpty(id)) {
                 id = UUID.randomUUID().toString();
             }
-            String title = item.optString("title", "(無題)");
+            String title = item.optString("title", AppText.untitled());
             todos.add(new LocalTodo(id, title));
         }
 

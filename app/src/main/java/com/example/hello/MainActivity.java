@@ -5,19 +5,26 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.WindowInsets;
 import android.view.inputmethod.InputMethodManager;
 import android.view.WindowManager;
 import android.widget.AdapterView;
@@ -56,6 +63,16 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "calendar_app";
     private static final String KEY_SELECTED_CALENDAR_ID = "selected_calendar_id";
     private static final long DAY_IN_MILLIS = 24L * 60L * 60L * 1000L;
+    private static final float MIN_FONT_SCALE = 0.90f;
+    private static final int DEFAULT_MONTH_EVENTS_PER_DAY = 3;
+    private static final int COMPACT_MONTH_EVENTS_PER_DAY = 2;
+    private static final int NORMAL_MONTH_CELL_HEIGHT_DP = 52;
+    private static final int COMPACT_MONTH_CELL_HEIGHT_DP = 44;
+    private static final int MONTH_GRID_SPACING_DP = 2;
+    private static final int MIN_MONTH_WEEK_ROWS = 5;
+    private static final int MAX_MONTH_WEEK_ROWS = 6;
+    private static final int COMPACT_SCREEN_HEIGHT_DP = 700;
+    private static final int KEYBOARD_VISIBILITY_THRESHOLD_DP = 120;
 
     private final List<CalendarRepository.CalendarInfo> writableCalendars = new ArrayList<>();
     private final List<CalendarRepository.CalendarEvent> eventsForSelectedDay = new ArrayList<>();
@@ -84,8 +101,30 @@ public class MainActivity extends Activity {
     private boolean resetScheduleListPosition;
 
     @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(createStableDisplayContext(newBase));
+    }
+
+    private static Context createStableDisplayContext(Context context) {
+        Configuration configuration = new Configuration(context.getResources().getConfiguration());
+        if (configuration.fontScale < MIN_FONT_SCALE) {
+            configuration.fontScale = MIN_FONT_SCALE;
+        }
+
+        int stableDensityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE;
+        if (stableDensityDpi > 0
+                && configuration.densityDpi > 0
+                && configuration.densityDpi < stableDensityDpi) {
+            configuration.densityDpi = stableDensityDpi;
+        }
+
+        return context.createConfigurationContext(configuration);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 
         selectedDayMillis = startOfDay(System.currentTimeMillis());
         visibleMonth = Calendar.getInstance();
@@ -177,7 +216,7 @@ public class MainActivity extends Activity {
     }
 
     private void buildLayout() {
-        int padding = dp(12);
+        int padding = dp(8);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -200,7 +239,7 @@ public class MainActivity extends Activity {
 
         monthLabelView = new TextView(this);
         monthLabelView.setGravity(Gravity.CENTER);
-        monthLabelView.setTextSize(20);
+        monthLabelView.setTextSize(18);
         monthLabelView.setTypeface(monthLabelView.getTypeface(), android.graphics.Typeface.BOLD);
 
         Button nextMonthButton = buildCompactActionButton("＞");
@@ -224,12 +263,12 @@ public class MainActivity extends Activity {
 
         LinearLayout controlBar = new LinearLayout(this);
         controlBar.setOrientation(LinearLayout.HORIZONTAL);
-        controlBar.setPadding(0, dp(8), 0, dp(8));
+        controlBar.setPadding(0, dp(6), 0, 0);
 
-        Button calendarButton = buildCompactActionButton("同期先変更");
+        Button calendarButton = buildCompactActionButton(AppText.pick(this, "同期先変更", "Calendar"));
         calendarButton.setOnClickListener(v -> showCalendarPicker());
 
-        Button refreshButton = buildCompactActionButton("再読み込み");
+        Button refreshButton = buildCompactActionButton(AppText.pick(this, "再読み込み", "Refresh"));
         refreshButton.setOnClickListener(v -> refreshAllData());
 
         controlBar.addView(calendarButton, createWeightedButtonLayoutParams());
@@ -242,12 +281,12 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
-        String[] weekLabels = {"月", "火", "水", "木", "金", "土", "日"};
+        String[] weekLabels = AppText.weekLabels(this);
         for (String weekLabel : weekLabels) {
             TextView labelView = new TextView(this);
             labelView.setText(weekLabel);
             labelView.setGravity(Gravity.CENTER);
-            labelView.setTextSize(12);
+            labelView.setTextSize(10);
             GridLayout.LayoutParams params = new GridLayout.LayoutParams();
             params.width = 0;
             params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
@@ -258,8 +297,8 @@ public class MainActivity extends Activity {
 
         monthGridView = new GridView(this);
         monthGridView.setNumColumns(7);
-        monthGridView.setHorizontalSpacing(dp(4));
-        monthGridView.setVerticalSpacing(dp(4));
+        monthGridView.setHorizontalSpacing(dp(MONTH_GRID_SPACING_DP));
+        monthGridView.setVerticalSpacing(dp(MONTH_GRID_SPACING_DP));
         monthGridView.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         monthGridView.setGravity(Gravity.CENTER);
         monthGridView.setVerticalScrollBarEnabled(false);
@@ -268,7 +307,7 @@ public class MainActivity extends Activity {
         monthGridView.setAdapter(monthCalendarAdapter);
         LinearLayout.LayoutParams monthGridParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(380)
+                dp(calculateMonthGridHeightDp(MIN_MONTH_WEEK_ROWS, NORMAL_MONTH_CELL_HEIGHT_DP))
         );
         monthGridParams.topMargin = dp(4);
         monthGridView.setLayoutParams(monthGridParams);
@@ -295,9 +334,9 @@ public class MainActivity extends Activity {
         monthGridView.setOnTouchListener((v, event) -> handleMonthGridTouch(event));
 
         selectedDateView = new TextView(this);
-        selectedDateView.setTextSize(15);
+        selectedDateView.setTextSize(13);
         selectedDateView.setTypeface(selectedDateView.getTypeface(), android.graphics.Typeface.BOLD);
-        selectedDateView.setPadding(0, dp(8), 0, dp(6));
+        selectedDateView.setPadding(0, dp(4), 0, dp(2));
 
         FrameLayout listContainer = new FrameLayout(this);
         LinearLayout.LayoutParams listContainerParams = new LinearLayout.LayoutParams(
@@ -308,7 +347,7 @@ public class MainActivity extends Activity {
         listContainer.setLayoutParams(listContainerParams);
 
         scheduleListView = new ListView(this);
-        scheduleListView.setDividerHeight(dp(4));
+        scheduleListView.setDividerHeight(dp(2));
         scheduleListView.setSelector(android.R.color.transparent);
         scheduleListAdapter = new ScheduleListAdapter(this, selectedDayItems);
         scheduleListView.setAdapter(scheduleListAdapter);
@@ -346,27 +385,27 @@ public class MainActivity extends Activity {
 
         LinearLayout actionBar = new LinearLayout(this);
         actionBar.setOrientation(LinearLayout.HORIZONTAL);
-        actionBar.setPadding(0, dp(8), 0, 0);
+        actionBar.setPadding(0, dp(4), 0, 0);
 
-        Button addButton = buildCompactActionButton("予定を追加");
+        Button addButton = buildCompactActionButton(AppText.pick(this, "予定を追加", "Add event"));
         addButton.setOnClickListener(v -> showEventDialog(null));
 
-        Button editButton = buildCompactActionButton("編集");
+        Button editButton = buildCompactActionButton(AppText.pick(this, "編集", "Edit"));
         editButton.setOnClickListener(v -> editSelectedEvent());
 
-        Button deleteButton = buildCompactActionButton("削除");
+        Button deleteButton = buildCompactActionButton(AppText.pick(this, "削除", "Delete"));
         deleteButton.setOnClickListener(v -> deleteSelectedEvent());
 
-        Button addTodoButton = buildCompactActionButton("TODO追加");
+        Button addTodoButton = buildCompactActionButton(AppText.pick(this, "TODO追加", "Add TODO"));
         addTodoButton.setOnClickListener(v -> showTodoDialog(null));
 
-        Button exportTodoButton = buildCompactActionButton("TODO保存");
+        Button exportTodoButton = buildCompactActionButton(AppText.pick(this, "TODO保存", "Save TODO"));
         exportTodoButton.setOnClickListener(v -> launchTodoExport());
 
-        Button importTodoButton = buildCompactActionButton("TODO読込");
+        Button importTodoButton = buildCompactActionButton(AppText.pick(this, "TODO読込", "Load TODO"));
         importTodoButton.setOnClickListener(v -> confirmTodoImport());
 
-        Button todayButton = buildCompactActionButton("本日");
+        Button todayButton = buildCompactActionButton(AppText.pick(this, "本日", "Today"));
         todayButton.setOnClickListener(v -> jumpToToday());
 
         actionBar.addView(addButton, createWeightedButtonLayoutParams());
@@ -376,7 +415,7 @@ public class MainActivity extends Activity {
 
         LinearLayout todoFileBar = new LinearLayout(this);
         todoFileBar.setOrientation(LinearLayout.HORIZONTAL);
-        todoFileBar.setPadding(0, dp(6), 0, 0);
+        todoFileBar.setPadding(0, dp(4), 0, 0);
 
         todoFileBar.addView(exportTodoButton, createWeightedButtonLayoutParams());
         todoFileBar.addView(importTodoButton, createWeightedButtonLayoutParams());
@@ -384,15 +423,16 @@ public class MainActivity extends Activity {
 
         root.addView(permissionView);
         root.addView(monthBar);
-        root.addView(controlBar);
         root.addView(weekdayHeader);
         root.addView(monthGridView);
         root.addView(selectedDateView);
         root.addView(listContainer);
         root.addView(actionBar);
         root.addView(todoFileBar);
+        root.addView(controlBar);
 
         setContentView(root);
+        installSystemAwareRootPadding(root);
     }
 
     private void refreshAllData() {
@@ -407,13 +447,17 @@ public class MainActivity extends Activity {
 
     private void showPermissionState() {
         permissionView.setVisibility(View.VISIBLE);
-        permissionView.setText("カレンダー権限を許可すると予定を表示して同期できます。");
+        permissionView.setText(AppText.pick(this,
+                "カレンダー権限を許可すると予定を表示して同期できます。",
+                "Allow calendar permission to show and sync events."));
         requestCalendarPermissions();
     }
 
     private void showCalendarUnavailableState() {
         permissionView.setVisibility(View.VISIBLE);
-        permissionView.setText("書き込み可能なカレンダーがありません。端末で Google カレンダー同期を有効にしてください。");
+        permissionView.setText(AppText.pick(this,
+                "書き込み可能なカレンダーがありません。端末で Google カレンダー同期を有効にしてください。",
+                "No writable calendar is available. Enable Google Calendar sync on this device."));
     }
 
     private void requestCalendarPermissions() {
@@ -466,20 +510,25 @@ public class MainActivity extends Activity {
 
         monthDayCells.clear();
         long gridStartMillis = getGridStartMillis();
+        int weekRows = getVisibleMonthWeekRows();
+        int maxMonthEventsPerDay = getMaxMonthEventsPerDay(weekRows);
+        int monthCellHeightDp = getMonthCellHeightDp(maxMonthEventsPerDay);
+        updateMonthGridDisplay(weekRows, monthCellHeightDp, maxMonthEventsPerDay);
         monthEventsByDay.clear();
 
         if (hasCalendarPermissions() && selectedCalendarId >= 0L) {
-            long gridEndMillis = gridStartMillis + (35L * DAY_IN_MILLIS);
+            long gridEndMillis = gridStartMillis + (weekRows * 7L * DAY_IN_MILLIS);
             List<CalendarRepository.CalendarEvent> monthEvents =
                     CalendarRepository.getEventsForRange(this, selectedCalendarId, gridStartMillis, gridEndMillis);
-            distributeEventsByDay(monthEvents, gridStartMillis, gridEndMillis, monthEventsByDay);
+            distributeEventsByDay(monthEvents, gridStartMillis, gridEndMillis, maxMonthEventsPerDay, monthEventsByDay);
         }
 
         Calendar dayCursor = Calendar.getInstance();
         dayCursor.setTimeInMillis(gridStartMillis);
         long todayStart = startOfDay(System.currentTimeMillis());
 
-        for (int i = 0; i < 35; i++) {
+        int visibleDayCount = weekRows * 7;
+        for (int i = 0; i < visibleDayCount; i++) {
             long dayStartMillis = dayCursor.getTimeInMillis();
             boolean isCurrentMonth = dayCursor.get(Calendar.MONTH) == visibleMonth.get(Calendar.MONTH)
                     && dayCursor.get(Calendar.YEAR) == visibleMonth.get(Calendar.YEAR);
@@ -487,7 +536,7 @@ public class MainActivity extends Activity {
             monthDayCells.add(new MonthDayCell(
                     dayStartMillis,
                     String.valueOf(dayCursor.get(Calendar.DAY_OF_MONTH)),
-                    buildDaySummary(dayStartMillis, dayEvents),
+                    buildDaySummary(dayStartMillis, dayEvents, maxMonthEventsPerDay),
                     isCurrentMonth,
                     dayStartMillis == todayStart,
                     dayStartMillis == selectedDayMillis
@@ -496,12 +545,61 @@ public class MainActivity extends Activity {
         }
 
         monthCalendarAdapter.notifyDataSetChanged();
+        monthGridView.setSelection(0);
+        monthGridView.post(() -> monthGridView.setSelection(0));
+    }
+
+    private int getVisibleMonthWeekRows() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(visibleMonth.getTimeInMillis());
+        resetToMonthStart(calendar);
+
+        int leadingDays = getMondayBasedDayOffset(calendar.get(Calendar.DAY_OF_WEEK));
+        int daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+        int weekRows = (leadingDays + daysInMonth + 6) / 7;
+        return Math.max(MIN_MONTH_WEEK_ROWS, Math.min(MAX_MONTH_WEEK_ROWS, weekRows));
+    }
+
+    private int getMaxMonthEventsPerDay(int weekRows) {
+        if (weekRows > MIN_MONTH_WEEK_ROWS || getScreenHeightDp() <= COMPACT_SCREEN_HEIGHT_DP) {
+            return COMPACT_MONTH_EVENTS_PER_DAY;
+        }
+        return DEFAULT_MONTH_EVENTS_PER_DAY;
+    }
+
+    private int getMonthCellHeightDp(int maxMonthEventsPerDay) {
+        return maxMonthEventsPerDay <= COMPACT_MONTH_EVENTS_PER_DAY
+                ? COMPACT_MONTH_CELL_HEIGHT_DP
+                : NORMAL_MONTH_CELL_HEIGHT_DP;
+    }
+
+    private void updateMonthGridDisplay(int weekRows, int cellHeightDp, int maxMonthEventsPerDay) {
+        monthCalendarAdapter.setDisplayDensity(cellHeightDp, maxMonthEventsPerDay);
+
+        ViewGroup.LayoutParams rawParams = monthGridView.getLayoutParams();
+        if (rawParams != null) {
+            int targetHeight = dp(calculateMonthGridHeightDp(weekRows, cellHeightDp));
+            if (rawParams.height != targetHeight) {
+                rawParams.height = targetHeight;
+                monthGridView.setLayoutParams(rawParams);
+            }
+        }
+    }
+
+    private int calculateMonthGridHeightDp(int weekRows, int cellHeightDp) {
+        return (weekRows * cellHeightDp) + ((weekRows - 1) * MONTH_GRID_SPACING_DP);
+    }
+
+    private int getScreenHeightDp() {
+        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        return Math.round(displayMetrics.heightPixels / displayMetrics.density);
     }
 
     private void distributeEventsByDay(
             List<CalendarRepository.CalendarEvent> monthEvents,
             long gridStartMillis,
             long gridEndMillis,
+            int maxMonthEventsPerDay,
             Map<Long, List<CalendarRepository.CalendarEvent>> eventsByDay
     ) {
         for (CalendarRepository.CalendarEvent event : monthEvents) {
@@ -516,20 +614,26 @@ public class MainActivity extends Activity {
                         dayEvents = new ArrayList<>();
                         eventsByDay.put(cursor, dayEvents);
                     }
-                    dayEvents.add(event);
+                    if (dayEvents.size() < maxMonthEventsPerDay) {
+                        dayEvents.add(event);
+                    }
                 }
                 cursor += DAY_IN_MILLIS;
             }
         }
     }
 
-    private String buildDaySummary(long dayStartMillis, List<CalendarRepository.CalendarEvent> dayEvents) {
+    private String buildDaySummary(
+            long dayStartMillis,
+            List<CalendarRepository.CalendarEvent> dayEvents,
+            int maxMonthEventsPerDay
+    ) {
         if (dayEvents == null || dayEvents.isEmpty()) {
             return "";
         }
 
         StringBuilder builder = new StringBuilder();
-        int visibleCount = Math.min(3, dayEvents.size());
+        int visibleCount = Math.min(maxMonthEventsPerDay, dayEvents.size());
         for (int i = 0; i < visibleCount; i++) {
             if (i > 0) {
                 builder.append('\n');
@@ -575,9 +679,11 @@ public class MainActivity extends Activity {
     private void refreshSelectedDayItems() {
         selectedDayItems.clear();
 
-        selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.section("予定"));
+        selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.section(AppText.pick(this, "予定", "Events")));
         if (eventsForSelectedDay.isEmpty()) {
-            selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.message("カレンダー予定はありません。"));
+            selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.message(AppText.pick(this,
+                    "カレンダー予定はありません。",
+                    "No calendar events.")));
         } else {
             for (CalendarRepository.CalendarEvent event : eventsForSelectedDay) {
                 selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.event(this, event));
@@ -586,7 +692,9 @@ public class MainActivity extends Activity {
 
         selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.section("TODO"));
         if (todosForSelectedDay.isEmpty()) {
-            selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.message("TODO はありません。"));
+            selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.message(AppText.pick(this,
+                    "TODO はありません。",
+                    "No TODO items.")));
         } else {
             for (LocalTodoRepository.LocalTodo todo : todosForSelectedDay) {
                 selectedDayItems.add(ScheduleListAdapter.ScheduleListItem.todo(todo));
@@ -630,7 +738,9 @@ public class MainActivity extends Activity {
             return;
         }
         if (writableCalendars.isEmpty()) {
-            Toast.makeText(this, "選択できるカレンダーがありません", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.pick(this,
+                    "選択できるカレンダーがありません",
+                    "No calendar can be selected"), Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -645,7 +755,7 @@ public class MainActivity extends Activity {
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("同期先カレンダーを選択")
+                .setTitle(AppText.pick(this, "同期先カレンダーを選択", "Select sync calendar"))
                 .setSingleChoiceItems(labels, checkedItem, (dialog, which) -> {
                     selectedCalendarId = writableCalendars.get(which).id;
                     persistCalendarId(selectedCalendarId);
@@ -655,17 +765,12 @@ public class MainActivity extends Activity {
                     refreshEventList();
                     dialog.dismiss();
                 })
-                .setNegativeButton("閉じる", null)
+                .setNegativeButton(AppText.pick(this, "閉じる", "Close"), null)
                 .show();
     }
 
     private void showEventDialog(CalendarRepository.CalendarEvent existingEvent) {
-        if (!hasCalendarPermissions()) {
-            requestCalendarPermissions();
-            return;
-        }
-        if (selectedCalendarId < 0L) {
-            Toast.makeText(this, "先に同期先カレンダーを選んでください", Toast.LENGTH_SHORT).show();
+        if (!ensureCalendarReadyForEventOperation()) {
             return;
         }
 
@@ -675,7 +780,11 @@ public class MainActivity extends Activity {
 
         if (editing) {
             startCalendar.setTimeInMillis(existingEvent.startMillis);
-            endCalendar.setTimeInMillis(existingEvent.endMillis);
+            if (existingEvent.allDay) {
+                endCalendar.setTimeInMillis(Math.max(existingEvent.startMillis, existingEvent.endMillis - DAY_IN_MILLIS));
+            } else {
+                endCalendar.setTimeInMillis(existingEvent.endMillis);
+            }
         } else {
             startCalendar.setTimeInMillis(defaultStartTime(selectedDayMillis));
             endCalendar.setTimeInMillis(startCalendar.getTimeInMillis());
@@ -687,14 +796,14 @@ public class MainActivity extends Activity {
         form.setPadding(padding, padding, padding, 0);
 
         EditText titleInput = new EditText(this);
-        titleInput.setHint("予定タイトル");
+        titleInput.setHint(AppText.pick(this, "予定タイトル", "Event title"));
         titleInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         if (editing) {
             titleInput.setText(existingEvent.title);
         }
 
         EditText notesInput = new EditText(this);
-        notesInput.setHint("メモ");
+        notesInput.setHint(AppText.pick(this, "メモ", "Notes"));
         notesInput.setMinLines(3);
         notesInput.setGravity(Gravity.TOP | Gravity.START);
         notesInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
@@ -703,7 +812,7 @@ public class MainActivity extends Activity {
         }
 
         CheckBox allDayCheck = new CheckBox(this);
-        allDayCheck.setText("終日予定");
+        allDayCheck.setText(AppText.pick(this, "終日予定", "All-day event"));
         allDayCheck.setChecked(editing && existingEvent.allDay);
 
         Button startDateButton = buildActionButton("");
@@ -711,9 +820,9 @@ public class MainActivity extends Activity {
         Button endDateButton = buildActionButton("");
 
         Runnable bindDateTimeLabels = () -> {
-            startDateButton.setText("開始日: " + formatDate(startCalendar.getTimeInMillis()));
-            startTimeButton.setText("開始時刻: " + formatTime(startCalendar.getTimeInMillis()));
-            endDateButton.setText("終了日: " + formatDate(endCalendar.getTimeInMillis()));
+            startDateButton.setText(AppText.pick(this, "開始日: ", "Start date: ") + formatDate(startCalendar.getTimeInMillis()));
+            startTimeButton.setText(AppText.pick(this, "開始時刻: ", "Start time: ") + formatTime(startCalendar.getTimeInMillis()));
+            endDateButton.setText(AppText.pick(this, "終了日: ", "End date: ") + formatDate(endCalendar.getTimeInMillis()));
             startTimeButton.setVisibility(allDayCheck.isChecked() ? View.GONE : View.VISIBLE);
         };
 
@@ -737,17 +846,24 @@ public class MainActivity extends Activity {
         addFormField(form, endDateButton);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(editing ? "予定を編集" : "予定を追加")
+                .setTitle(editing
+                        ? AppText.pick(this, "予定を編集", "Edit event")
+                        : AppText.pick(this, "予定を追加", "Add event"))
                 .setView(form)
-                .setPositiveButton(editing ? "更新" : "保存", null)
-                .setNegativeButton("キャンセル", null)
+                .setPositiveButton(editing
+                        ? AppText.pick(this, "更新", "Update")
+                        : AppText.pick(this, "保存", "Save"), null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .create();
 
         dialog.setOnShowListener(ignored -> {
             titleInput.requestFocus();
             titleInput.setSelection(titleInput.getText().length());
             if (dialog.getWindow() != null) {
-                dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+                dialog.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                );
             }
             titleInput.post(() -> {
                 InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
@@ -762,7 +878,7 @@ public class MainActivity extends Activity {
                 boolean allDay = allDayCheck.isChecked();
 
                 if (TextUtils.isEmpty(title)) {
-                    titleInput.setError("タイトルを入力してください");
+                    titleInput.setError(AppText.pick(this, "タイトルを入力してください", "Enter a title"));
                     return;
                 }
 
@@ -772,7 +888,9 @@ public class MainActivity extends Activity {
                         : buildDateTimeWithTimeOfDay(endCalendar, startCalendar);
 
                 if ((allDay && endMillis <= startMillis) || (!allDay && endMillis < startMillis)) {
-                    Toast.makeText(this, "終了日は開始日以降にしてください", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, AppText.pick(this,
+                            "終了日は開始日以降にしてください",
+                            "End date must be on or after the start date"), Toast.LENGTH_LONG).show();
                     return;
                 }
 
@@ -805,7 +923,9 @@ public class MainActivity extends Activity {
                 }
 
                 if (!success) {
-                    Toast.makeText(this, "予定の保存に失敗しました", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, AppText.pick(this,
+                            "予定の保存に失敗しました",
+                            "Failed to save event"), Toast.LENGTH_LONG).show();
                     return;
                 }
 
@@ -830,7 +950,7 @@ public class MainActivity extends Activity {
         form.setPadding(padding, padding, padding, 0);
 
         EditText titleInput = new EditText(this);
-        titleInput.setHint("TODOタイトル");
+        titleInput.setHint(AppText.pick(this, "TODOタイトル", "TODO title"));
         titleInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         if (editing) {
             titleInput.setText(existingTodo.title);
@@ -839,17 +959,24 @@ public class MainActivity extends Activity {
         addFormField(form, titleInput);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(editing ? "TODO を編集" : "TODO を追加")
+                .setTitle(editing
+                        ? AppText.pick(this, "TODO を編集", "Edit TODO")
+                        : AppText.pick(this, "TODO を追加", "Add TODO"))
                 .setView(form)
-                .setPositiveButton(editing ? "更新" : "追加", null)
-                .setNegativeButton("キャンセル", null)
+                .setPositiveButton(editing
+                        ? AppText.pick(this, "更新", "Update")
+                        : AppText.pick(this, "追加", "Add"), null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .create();
 
         dialog.setOnShowListener(ignored -> {
             titleInput.requestFocus();
             titleInput.setSelection(titleInput.getText().length());
             if (dialog.getWindow() != null) {
-                dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+                dialog.getWindow().setSoftInputMode(
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                );
             }
             titleInput.post(() -> {
                 InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
@@ -861,7 +988,7 @@ public class MainActivity extends Activity {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                 String title = titleInput.getText().toString().trim();
                 if (TextUtils.isEmpty(title)) {
-                    titleInput.setError("タイトルを入力してください");
+                    titleInput.setError(AppText.pick(this, "タイトルを入力してください", "Enter a title"));
                     return;
                 }
 
@@ -874,13 +1001,17 @@ public class MainActivity extends Activity {
                 }
 
                 if (!success) {
-                    Toast.makeText(this, "TODO の保存に失敗しました", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, AppText.pick(this,
+                            "TODO の保存に失敗しました",
+                            "Failed to save TODO"), Toast.LENGTH_LONG).show();
                     return;
                 }
 
                 refreshEventList();
                 dialog.dismiss();
-                Toast.makeText(this, editing ? "TODO を更新しました" : "TODO を保存しました", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, editing
+                        ? AppText.pick(this, "TODO を更新しました", "TODO updated")
+                        : AppText.pick(this, "TODO を保存しました", "TODO saved"), Toast.LENGTH_SHORT).show();
             });
         });
 
@@ -888,7 +1019,12 @@ public class MainActivity extends Activity {
     }
 
     private void showTodoActionsDialog(LocalTodoRepository.LocalTodo todo) {
-        String[] actions = {"編集", "上へ移動", "下へ移動", "削除"};
+        String[] actions = {
+                AppText.pick(this, "編集", "Edit"),
+                AppText.pick(this, "上へ移動", "Move up"),
+                AppText.pick(this, "下へ移動", "Move down"),
+                AppText.pick(this, "削除", "Delete")
+        };
         new AlertDialog.Builder(this)
                 .setTitle(todo.title)
                 .setItems(actions, (dialog, which) -> {
@@ -906,43 +1042,62 @@ public class MainActivity extends Activity {
                     boolean moved = LocalTodoRepository.moveTodo(this, todo.id, offset);
                     if (moved) {
                         refreshEventList();
-                        Toast.makeText(this, "TODO の順番を変更しました", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "TODO の順番を変更しました",
+                                "TODO order changed"), Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(this, "これ以上は移動できません", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "これ以上は移動できません",
+                                "Cannot move any farther"), Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("キャンセル", null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .show();
     }
 
     private void confirmTodoDelete(LocalTodoRepository.LocalTodo todo) {
         new AlertDialog.Builder(this)
-                .setTitle("TODO を削除")
-                .setMessage("「" + todo.title + "」を削除しますか。")
-                .setPositiveButton("削除", (dialog, which) -> {
+                .setTitle(AppText.pick(this, "TODO を削除", "Delete TODO"))
+                .setMessage(AppText.deleteMessage(this, todo.title))
+                .setPositiveButton(AppText.pick(this, "削除", "Delete"), (dialog, which) -> {
                     boolean deleted = LocalTodoRepository.deleteTodo(this, todo.id);
                     if (deleted) {
                         refreshEventList();
-                        Toast.makeText(this, "TODO を削除しました", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "TODO を削除しました",
+                                "TODO deleted"), Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(this, "TODO の削除に失敗しました", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "TODO の削除に失敗しました",
+                                "Failed to delete TODO"), Toast.LENGTH_LONG).show();
                     }
                 })
-                .setNegativeButton("キャンセル", null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .show();
     }
 
     private void editSelectedEvent() {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
         CalendarRepository.CalendarEvent event = getSelectedEvent();
         if (event == null) {
-            Toast.makeText(this, "編集する予定を選んでください", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.pick(this,
+                    "編集する予定を選んでください",
+                    "Select an event to edit"), Toast.LENGTH_SHORT).show();
             return;
         }
         showEventDialog(event);
     }
 
     private void showEventActionsDialog(CalendarRepository.CalendarEvent event) {
-        String[] actions = {"編集", "削除"};
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
+        String[] actions = {
+                AppText.pick(this, "編集", "Edit"),
+                AppText.pick(this, "削除", "Delete")
+        };
         new AlertDialog.Builder(this)
                 .setTitle(event.title)
                 .setItems(actions, (dialog, which) -> {
@@ -955,14 +1110,19 @@ public class MainActivity extends Activity {
                         showDeleteEventDialog(event);
                     }
                 })
-                .setNegativeButton("キャンセル", null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .show();
     }
 
     private void deleteSelectedEvent() {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
         CalendarRepository.CalendarEvent event = getSelectedEvent();
         if (event == null) {
-            Toast.makeText(this, "削除する予定を選んでください", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.pick(this,
+                    "削除する予定を選んでください",
+                    "Select an event to delete"), Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -970,10 +1130,13 @@ public class MainActivity extends Activity {
     }
 
     private void showDeleteEventDialog(CalendarRepository.CalendarEvent event) {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
         new AlertDialog.Builder(this)
-                .setTitle("予定を削除")
-                .setMessage("「" + event.title + "」を削除しますか。")
-                .setPositiveButton("削除", (dialog, which) -> {
+                .setTitle(AppText.pick(this, "予定を削除", "Delete event"))
+                .setMessage(AppText.deleteMessage(this, event.title))
+                .setPositiveButton(AppText.pick(this, "削除", "Delete"), (dialog, which) -> {
                     boolean deleted;
                     try {
                         deleted = CalendarRepository.deleteEvent(this, event, findCalendarInfo(event.calendarId));
@@ -985,13 +1148,44 @@ public class MainActivity extends Activity {
                         selectedEventId = -1L;
                         refreshMonthGrid();
                         refreshEventList();
-                        Toast.makeText(this, "予定を削除しました", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "予定を削除しました",
+                                "Event deleted"), Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(this, "予定の削除に失敗しました", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, AppText.pick(this,
+                                "予定の削除に失敗しました",
+                                "Failed to delete event"), Toast.LENGTH_LONG).show();
                     }
                 })
-                .setNegativeButton("キャンセル", null)
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .show();
+    }
+
+    private boolean ensureCalendarReadyForEventOperation() {
+        if (!hasCalendarPermissions()) {
+            Toast.makeText(this, AppText.pick(this,
+                    "カレンダーを同期するには権限を許可してください",
+                    "Allow permission to sync the calendar"), Toast.LENGTH_LONG).show();
+            requestCalendarPermissions();
+            return false;
+        }
+
+        if (writableCalendars.isEmpty()
+                || selectedCalendarId < 0L
+                || !containsCalendarId(selectedCalendarId)) {
+            loadCalendars();
+        }
+
+        if (writableCalendars.isEmpty()
+                || selectedCalendarId < 0L
+                || !containsCalendarId(selectedCalendarId)) {
+            Toast.makeText(this, AppText.pick(this,
+                    "先にカレンダーを同期してください",
+                    "Sync a calendar first"), Toast.LENGTH_LONG).show();
+            return false;
+        }
+
+        return true;
     }
 
     private CalendarRepository.CalendarInfo findCalendarInfo(long calendarId) {
@@ -1093,7 +1287,7 @@ public class MainActivity extends Activity {
         button.setTextSize(12);
         button.setMinHeight(0);
         button.setMinimumHeight(0);
-        button.setPadding(dp(8), dp(6), dp(8), dp(6));
+        button.setPadding(dp(6), dp(4), dp(6), dp(4));
         return button;
     }
 
@@ -1126,10 +1320,12 @@ public class MainActivity extends Activity {
 
     private void confirmTodoImport() {
         new AlertDialog.Builder(this)
-                .setTitle("TODO を読み込み")
-                .setMessage("ファイルの内容で現在の TODO を置き換えます。")
-                .setPositiveButton("読込", (dialog, which) -> launchTodoImport())
-                .setNegativeButton("キャンセル", null)
+                .setTitle(AppText.pick(this, "TODO を読み込み", "Load TODO"))
+                .setMessage(AppText.pick(this,
+                        "ファイルの内容で現在の TODO を置き換えます。",
+                        "Replace current TODO items with the file contents."))
+                .setPositiveButton(AppText.pick(this, "読込", "Load"), (dialog, which) -> launchTodoImport())
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
                 .show();
     }
 
@@ -1149,9 +1345,11 @@ public class MainActivity extends Activity {
             String json = LocalTodoRepository.exportTodosAsJson(this);
             outputStream.write(json.getBytes(StandardCharsets.UTF_8));
             outputStream.flush();
-            Toast.makeText(this, "TODO を保存しました", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.pick(this, "TODO を保存しました", "TODO saved"), Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
-            Toast.makeText(this, "TODO の保存に失敗しました", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, AppText.pick(this,
+                    "TODO の保存に失敗しました",
+                    "Failed to save TODO"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1164,9 +1362,11 @@ public class MainActivity extends Activity {
             String json = readAllText(inputStream);
             int importedCount = LocalTodoRepository.importTodosFromJson(this, json);
             refreshEventList();
-            Toast.makeText(this, importedCount + " 件の TODO を読み込みました", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppText.importedTodos(this, importedCount), Toast.LENGTH_SHORT).show();
         } catch (IOException | JSONException e) {
-            Toast.makeText(this, "TODO の読み込みに失敗しました", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, AppText.pick(this,
+                    "TODO の読み込みに失敗しました",
+                    "Failed to load TODO"), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1231,8 +1431,81 @@ public class MainActivity extends Activity {
         preferences.edit().putLong(KEY_SELECTED_CALENDAR_ID, calendarId).apply();
     }
 
+    private void installSystemAwareRootPadding(View root) {
+        final int baseLeft = root.getPaddingLeft();
+        final int baseTop = root.getPaddingTop();
+        final int baseRight = root.getPaddingRight();
+        final int baseBottom = root.getPaddingBottom();
+        final int keyboardThreshold = dp(KEYBOARD_VISIBILITY_THRESHOLD_DP);
+        final Rect visibleFrame = new Rect();
+        final int[] rootLocation = new int[2];
+        final int[] topSystemInset = {0};
+        final int[] bottomSystemInset = {0};
+        final int[] bottomImeInset = {0};
+
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                topSystemInset[0] = insets.getInsets(WindowInsets.Type.statusBars()).top;
+                bottomSystemInset[0] = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                bottomImeInset[0] = insets.getInsets(WindowInsets.Type.ime()).bottom;
+            } else {
+                topSystemInset[0] = insets.getSystemWindowInsetTop();
+                bottomSystemInset[0] = insets.getSystemWindowInsetBottom();
+                bottomImeInset[0] = 0;
+            }
+            applyRootPadding(root, baseLeft, baseTop, baseRight, baseBottom,
+                    topSystemInset[0], bottomSystemInset[0], bottomImeInset[0], keyboardThreshold);
+            return insets;
+        });
+        root.requestApplyInsets();
+
+        root.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                root.getWindowVisibleDisplayFrame(visibleFrame);
+                root.getLocationOnScreen(rootLocation);
+
+                int rootBottom = rootLocation[1] + root.getHeight();
+                int keyboardOverlap = Math.max(0, rootBottom - visibleFrame.bottom);
+                int visibleTopInset = Math.max(0, visibleFrame.top - rootLocation[1]);
+                if (topSystemInset[0] == 0 && visibleTopInset > 0) {
+                    topSystemInset[0] = visibleTopInset;
+                }
+                int keyboardPadding = keyboardOverlap > keyboardThreshold ? keyboardOverlap : 0;
+                applyRootPadding(root, baseLeft, baseTop, baseRight, baseBottom,
+                        topSystemInset[0], bottomSystemInset[0], Math.max(bottomImeInset[0], keyboardPadding), keyboardThreshold);
+            }
+        });
+    }
+
+    private void applyRootPadding(
+            View root,
+            int baseLeft,
+            int baseTop,
+            int baseRight,
+            int baseBottom,
+            int topSystemInset,
+            int bottomSystemInset,
+            int bottomImeInset,
+            int keyboardThreshold
+    ) {
+        int keyboardPadding = bottomImeInset > keyboardThreshold ? bottomImeInset : 0;
+        int targetTop = baseTop + Math.max(0, topSystemInset);
+        int targetBottom = baseBottom + Math.max(Math.max(0, bottomSystemInset), keyboardPadding);
+        if (root.getPaddingLeft() != baseLeft
+                || root.getPaddingTop() != targetTop
+                || root.getPaddingRight() != baseRight
+                || root.getPaddingBottom() != targetBottom) {
+            root.setPadding(baseLeft, targetTop, baseRight, targetBottom);
+        }
+    }
+
     private int dp(int value) {
-        return (int) (value * getResources().getDisplayMetrics().density);
+        if (value == 0) {
+            return 0;
+        }
+        int pixels = Math.round(value * getResources().getDisplayMetrics().density);
+        return value > 0 ? Math.max(1, pixels) : Math.min(-1, pixels);
     }
 
     private long startOfDay(long timeInMillis) {
@@ -1291,12 +1564,12 @@ public class MainActivity extends Activity {
     }
 
     private String formatSelectedDate(long timeInMillis) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy年M月d日 (E)", Locale.getDefault());
-        return format.format(new Date(timeInMillis)) + " の予定";
+        SimpleDateFormat format = new SimpleDateFormat(AppText.selectedDatePattern(this), AppText.displayLocale(this));
+        return AppText.selectedDateTitle(this, format.format(new Date(timeInMillis)));
     }
 
     private String formatVisibleMonth(long timeInMillis) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy年M月", Locale.getDefault());
+        SimpleDateFormat format = new SimpleDateFormat(AppText.visibleMonthPattern(this), AppText.displayLocale(this));
         return format.format(new Date(timeInMillis));
     }
 
@@ -1306,6 +1579,10 @@ public class MainActivity extends Activity {
     }
 
     private String formatTime(long timeInMillis) {
+        if (!AppText.isJapan(this)) {
+            SimpleDateFormat format = new SimpleDateFormat("h:mm a", Locale.ENGLISH);
+            return format.format(new Date(timeInMillis));
+        }
         java.text.DateFormat format = DateFormat.getTimeFormat(this);
         return format.format(new Date(timeInMillis));
     }

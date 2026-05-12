@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.TextUtils.TruncateAt;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
@@ -23,6 +24,10 @@ public class ScheduleListAdapter extends BaseAdapter {
     private static final int ITEM_KIND_EVENT = 1;
     private static final int ITEM_KIND_TODO = 2;
     private static final int ITEM_KIND_MESSAGE = 3;
+    private static final int SECTION_TEXT_SIZE_SP = 10;
+    private static final int MESSAGE_TEXT_SIZE_SP = 10;
+    private static final int TITLE_TEXT_SIZE_SP = 12;
+    private static final int DETAIL_TEXT_SIZE_SP = 9;
 
     private final Context context;
     private final List<ScheduleListItem> items = new ArrayList<>();
@@ -101,10 +106,10 @@ public class ScheduleListAdapter extends BaseAdapter {
                     AbsListView.LayoutParams.MATCH_PARENT,
                     AbsListView.LayoutParams.WRAP_CONTENT
             ));
-            sectionView.setTextSize(11);
+            sectionView.setTextSize(SECTION_TEXT_SIZE_SP);
             sectionView.setTypeface(sectionView.getTypeface(), android.graphics.Typeface.BOLD);
             sectionView.setTextColor(Color.parseColor("#475569"));
-            sectionView.setPadding(dp(8), dp(6), dp(8), dp(4));
+            sectionView.setPadding(dp(8), dp(3), dp(8), dp(2));
         }
         sectionView.setText(items.get(position).title);
         return sectionView;
@@ -120,8 +125,8 @@ public class ScheduleListAdapter extends BaseAdapter {
                     AbsListView.LayoutParams.MATCH_PARENT,
                     AbsListView.LayoutParams.WRAP_CONTENT
             ));
-            messageView.setTextSize(11);
-            messageView.setPadding(dp(14), dp(8), dp(14), dp(8));
+            messageView.setTextSize(MESSAGE_TEXT_SIZE_SP);
+            messageView.setPadding(dp(10), dp(4), dp(10), dp(4));
             messageView.setTextColor(Color.parseColor("#64748B"));
         }
         messageView.setText(items.get(position).title);
@@ -136,21 +141,25 @@ public class ScheduleListAdapter extends BaseAdapter {
         if (convertView == null || !(convertView instanceof LinearLayout)) {
             itemLayout = new LinearLayout(context);
             itemLayout.setOrientation(LinearLayout.VERTICAL);
-            itemLayout.setPadding(dp(14), dp(8), dp(14), dp(8));
+            itemLayout.setPadding(dp(10), dp(4), dp(10), dp(4));
             itemLayout.setLayoutParams(new AbsListView.LayoutParams(
                     AbsListView.LayoutParams.MATCH_PARENT,
                     AbsListView.LayoutParams.WRAP_CONTENT
             ));
 
             titleView = new TextView(context);
-            titleView.setTextSize(13);
+            titleView.setTextSize(TITLE_TEXT_SIZE_SP);
             titleView.setTextColor(Color.parseColor("#16324F"));
             titleView.setTypeface(titleView.getTypeface(), android.graphics.Typeface.BOLD);
+            titleView.setSingleLine(true);
+            titleView.setEllipsize(TruncateAt.END);
 
             detailView = new TextView(context);
-            detailView.setTextSize(10);
+            detailView.setTextSize(DETAIL_TEXT_SIZE_SP);
             detailView.setTextColor(Color.parseColor("#52667A"));
-            detailView.setPadding(0, dp(2), 0, 0);
+            detailView.setPadding(0, dp(1), 0, 0);
+            detailView.setMaxLines(2);
+            detailView.setEllipsize(TruncateAt.END);
 
             itemLayout.addView(titleView);
             itemLayout.addView(detailView);
@@ -177,7 +186,11 @@ public class ScheduleListAdapter extends BaseAdapter {
     }
 
     private int dp(int value) {
-        return (int) (value * context.getResources().getDisplayMetrics().density);
+        if (value == 0) {
+            return 0;
+        }
+        int pixels = Math.round(value * context.getResources().getDisplayMetrics().density);
+        return value > 0 ? Math.max(1, pixels) : Math.min(-1, pixels);
     }
 
     public static final class ScheduleListItem {
@@ -212,7 +225,7 @@ public class ScheduleListAdapter extends BaseAdapter {
         static ScheduleListItem event(Context context, CalendarRepository.CalendarEvent event) {
             String detail;
             if (event.allDay) {
-                detail = "終日";
+                detail = AppText.pick(context, "終日", "All day");
             } else {
                 java.text.DateFormat timeFormat = DateFormat.getTimeFormat(context);
                 detail = timeFormat.format(new Date(event.startMillis))

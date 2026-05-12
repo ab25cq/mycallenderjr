@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -18,6 +19,7 @@ public final class CalendarRepository {
     private static final String TAG = "MyCalendarRepo";
     private static final long DAY_IN_MILLIS = 24L * 60L * 60L * 1000L;
     private static final long INSTANCE_QUERY_PADDING_MILLIS = 31L * DAY_IN_MILLIS;
+    private static final TimeZone UTC_TIME_ZONE = TimeZone.getTimeZone("UTC");
 
     private CalendarRepository() {
     }
@@ -145,8 +147,13 @@ public final class CalendarRepository {
             while (cursor.moveToNext()) {
                 long startMillis = cursor.getLong(startIndex);
                 long endMillis = cursor.isNull(endIndex) ? startMillis : cursor.getLong(endIndex);
+                boolean allDay = cursor.getInt(allDayIndex) == 1;
                 if (endMillis == startMillis) {
-                    endMillis = startMillis + 60L * 60L * 1000L;
+                    endMillis = startMillis + (allDay ? DAY_IN_MILLIS : 60L * 60L * 1000L);
+                }
+                if (allDay) {
+                    startMillis = allDayMillisToLocalDayStart(startMillis);
+                    endMillis = allDayMillisToLocalDayStart(endMillis);
                 }
                 if (startMillis >= rangeEndMillis || endMillis <= rangeStartMillis) {
                     continue;
@@ -159,11 +166,11 @@ public final class CalendarRepository {
                         cursor.getLong(idIndex),
                         cursor.getLong(eventIdIndex),
                         cursor.getLong(calendarIdIndex),
-                        TextUtils.isEmpty(title) ? "(無題)" : title,
+                        TextUtils.isEmpty(title) ? AppText.untitled() : title,
                         description == null ? "" : description,
                         startMillis,
                         endMillis,
-                        cursor.getInt(allDayIndex) == 1
+                        allDay
                 ));
             }
         } finally {
@@ -276,12 +283,78 @@ public final class CalendarRepository {
         values.put(CalendarContract.Events.CALENDAR_ID, calendarId);
         values.put(CalendarContract.Events.TITLE, title);
         values.put(CalendarContract.Events.DESCRIPTION, description);
-        values.put(CalendarContract.Events.DTSTART, startMillis);
-        values.put(CalendarContract.Events.DTEND, endMillis);
+        values.put(CalendarContract.Events.DTSTART, allDay ? localDateToUtcAllDayMillis(startMillis) : startMillis);
+        values.put(CalendarContract.Events.DTEND, allDay ? localDateToUtcAllDayMillis(endMillis) : endMillis);
         values.put(CalendarContract.Events.ALL_DAY, allDay ? 1 : 0);
-        values.put(CalendarContract.Events.EVENT_TIMEZONE, allDay ? "UTC" : TimeZone.getDefault().getID());
+        values.put(CalendarContract.Events.EVENT_TIMEZONE, allDay ? UTC_TIME_ZONE.getID() : TimeZone.getDefault().getID());
         values.put(CalendarContract.Events.HAS_ALARM, 0);
         return values;
+    }
+
+    private static long localDateToUtcAllDayMillis(long localDateMillis) {
+        Calendar localCalendar = Calendar.getInstance();
+        localCalendar.setTimeInMillis(localDateMillis);
+
+        Calendar utcCalendar = Calendar.getInstance(UTC_TIME_ZONE);
+        utcCalendar.clear();
+        utcCalendar.set(
+                localCalendar.get(Calendar.YEAR),
+                localCalendar.get(Calendar.MONTH),
+                localCalendar.get(Calendar.DAY_OF_MONTH),
+                0,
+                0,
+                0
+        );
+        return utcCalendar.getTimeInMillis();
+    }
+
+    private static long allDayMillisToLocalDayStart(long millis) {
+        if (isLocalMidnight(millis) && !isUtcMidnight(millis)) {
+            return startOfLocalDay(millis);
+        }
+
+        Calendar utcCalendar = Calendar.getInstance(UTC_TIME_ZONE);
+        utcCalendar.setTimeInMillis(millis);
+
+        Calendar localCalendar = Calendar.getInstance();
+        localCalendar.clear();
+        localCalendar.set(
+                utcCalendar.get(Calendar.YEAR),
+                utcCalendar.get(Calendar.MONTH),
+                utcCalendar.get(Calendar.DAY_OF_MONTH),
+                0,
+                0,
+                0
+        );
+        return localCalendar.getTimeInMillis();
+    }
+
+    private static boolean isLocalMidnight(long millis) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(millis);
+        return calendar.get(Calendar.HOUR_OF_DAY) == 0
+                && calendar.get(Calendar.MINUTE) == 0
+                && calendar.get(Calendar.SECOND) == 0
+                && calendar.get(Calendar.MILLISECOND) == 0;
+    }
+
+    private static boolean isUtcMidnight(long millis) {
+        Calendar calendar = Calendar.getInstance(UTC_TIME_ZONE);
+        calendar.setTimeInMillis(millis);
+        return calendar.get(Calendar.HOUR_OF_DAY) == 0
+                && calendar.get(Calendar.MINUTE) == 0
+                && calendar.get(Calendar.SECOND) == 0
+                && calendar.get(Calendar.MILLISECOND) == 0;
+    }
+
+    private static long startOfLocalDay(long millis) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(millis);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
     }
 
     public static final class CalendarInfo {
@@ -292,8 +365,8 @@ public final class CalendarRepository {
 
         CalendarInfo(long id, String displayName, String accountName, String accountType) {
             this.id = id;
-            this.displayName = displayName == null ? "(名称なし)" : displayName;
-            this.accountName = accountName == null ? "(アカウントなし)" : accountName;
+            this.displayName = displayName == null ? AppText.unnamedCalendar() : displayName;
+            this.accountName = accountName == null ? AppText.noAccount() : accountName;
             this.accountType = accountType == null ? "" : accountType;
         }
 
