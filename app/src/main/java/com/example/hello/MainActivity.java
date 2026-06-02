@@ -14,9 +14,15 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.style.BackgroundColorSpan;
+import android.text.style.ForegroundColorSpan;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
@@ -24,6 +30,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.view.inputmethod.InputMethodManager;
 import android.view.WindowManager;
@@ -34,12 +41,16 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.GridLayout;
 import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -51,28 +62,40 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class MainActivity extends Activity {
     private static final String TAG = "MyCalendarMain";
     private static final int REQUEST_CALENDAR_PERMISSIONS = 1001;
     private static final int REQUEST_EXPORT_TODOS = 2001;
     private static final int REQUEST_IMPORT_TODOS = 2002;
+    private static final int REQUEST_PICK_WALLPAPER = 2003;
+    private static final int REQUEST_EXPORT_CALENDAR = 2004;
+    private static final int REQUEST_IMPORT_CALENDAR = 2005;
     private static final String PREFS_NAME = "calendar_app";
+    private static final String SHIFT_PREFS_NAME = "shift_buttons";
+    private static final String CUSTOM_SYNC_TARGETS_KEY = "custom_sync_targets";
     private static final String KEY_SELECTED_CALENDAR_ID = "selected_calendar_id";
+    private static final String KEY_EXTRA_CALENDAR_IDS = "extra_calendar_ids";
+    private static final String KEY_WALLPAPER_URI = "wallpaper_uri";
     private static final long DAY_IN_MILLIS = 24L * 60L * 60L * 1000L;
     private static final float MIN_FONT_SCALE = 0.90f;
-    private static final int DEFAULT_MONTH_EVENTS_PER_DAY = 3;
-    private static final int COMPACT_MONTH_EVENTS_PER_DAY = 2;
-    private static final int NORMAL_MONTH_CELL_HEIGHT_DP = 52;
-    private static final int COMPACT_MONTH_CELL_HEIGHT_DP = 44;
+    private static final int DEFAULT_MONTH_EVENTS_PER_DAY = 10;
+    private static final int COMPACT_MONTH_EVENTS_PER_DAY = 10;
+    private static final int NORMAL_MONTH_CELL_HEIGHT_DP = 148;
+    private static final int COMPACT_MONTH_CELL_HEIGHT_DP = 128;
     private static final int MONTH_GRID_SPACING_DP = 2;
     private static final int MIN_MONTH_WEEK_ROWS = 5;
     private static final int MAX_MONTH_WEEK_ROWS = 6;
-    private static final int COMPACT_SCREEN_HEIGHT_DP = 700;
+    private static final int COMPACT_SCREEN_HEIGHT_DP = 640;
     private static final int KEYBOARD_VISIBILITY_THRESHOLD_DP = 120;
+    private static final float WALLPAPER_ALPHA = 0.90f;
+    private static final int DEFAULT_BACKGROUND_COLOR = 0xFF26323A;
 
     private final List<CalendarRepository.CalendarInfo> writableCalendars = new ArrayList<>();
     private final List<CalendarRepository.CalendarEvent> eventsForSelectedDay = new ArrayList<>();
@@ -80,11 +103,13 @@ public class MainActivity extends Activity {
     private final List<ScheduleListAdapter.ScheduleListItem> selectedDayItems = new ArrayList<>();
     private final List<MonthDayCell> monthDayCells = new ArrayList<>();
     private final Map<Long, List<CalendarRepository.CalendarEvent>> monthEventsByDay = new HashMap<>();
+    private final Handler monthLongPressHandler = new Handler(Looper.getMainLooper());
 
     private TextView permissionView;
     private TextView monthLabelView;
     private TextView selectedDateView;
     private GridView monthGridView;
+    private ImageView wallpaperView;
     private ListView scheduleListView;
     private ScheduleListAdapter scheduleListAdapter;
     private MonthCalendarAdapter monthCalendarAdapter;
@@ -92,13 +117,18 @@ public class MainActivity extends Activity {
     private long selectedDayMillis;
     private long selectedCalendarId = -1L;
     private long selectedEventId = -1L;
+    private final LinkedHashSet<Long> extraCalendarIds = new LinkedHashSet<>();
     private Calendar visibleMonth;
     private float monthTouchDownX;
     private float monthTouchDownY;
+    private int monthLongPressPosition = AdapterView.INVALID_POSITION;
+    private boolean monthLongPressTriggered;
+    private Runnable monthLongPressRunnable;
     private float scheduleTouchDownX;
     private float scheduleTouchDownY;
     private int scheduleTouchDownPosition = AdapterView.INVALID_POSITION;
     private boolean resetScheduleListPosition;
+    private boolean mainCalendarDialogShowing;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -125,6 +155,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        boolean freshLaunch = savedInstanceState == null;
 
         selectedDayMillis = startOfDay(System.currentTimeMillis());
         visibleMonth = Calendar.getInstance();
@@ -142,11 +173,13 @@ public class MainActivity extends Activity {
         } else {
             selectedCalendarId = loadPersistedCalendarId();
         }
+        extraCalendarIds.addAll(loadPersistedExtraCalendarIds());
 
         if (hasCalendarPermissions()) {
             loadCalendars();
             refreshMonthGrid();
             refreshEventList();
+            promptForMainCalendar(freshLaunch);
         } else {
             showPermissionState();
             refreshMonthGrid();
@@ -160,6 +193,7 @@ public class MainActivity extends Activity {
             loadCalendars();
             refreshMonthGrid();
             refreshEventList();
+            maybePromptForMainCalendar();
         }
     }
 
@@ -191,6 +225,7 @@ public class MainActivity extends Activity {
             loadCalendars();
             refreshMonthGrid();
             refreshEventList();
+            promptForMainCalendar(true);
         } else {
             showPermissionState();
             refreshMonthGrid();
@@ -212,6 +247,21 @@ public class MainActivity extends Activity {
 
         if (requestCode == REQUEST_IMPORT_TODOS) {
             importTodosFromUri(uri);
+            return;
+        }
+
+        if (requestCode == REQUEST_PICK_WALLPAPER) {
+            saveWallpaperUri(uri);
+            return;
+        }
+
+        if (requestCode == REQUEST_EXPORT_CALENDAR) {
+            exportCalendarToUri(uri);
+            return;
+        }
+
+        if (requestCode == REQUEST_IMPORT_CALENDAR) {
+            importCalendarFromUri(uri);
         }
     }
 
@@ -263,16 +313,43 @@ public class MainActivity extends Activity {
 
         LinearLayout controlBar = new LinearLayout(this);
         controlBar.setOrientation(LinearLayout.HORIZONTAL);
-        controlBar.setPadding(0, dp(6), 0, 0);
+        controlBar.setPadding(0, dp(2), 0, 0);
 
-        Button calendarButton = buildCompactActionButton(AppText.pick(this, "同期先変更", "Calendar"));
+        Button calendarButton = buildTightActionButton(AppText.pick(this, "表示切替", "Display"));
         calendarButton.setOnClickListener(v -> showCalendarPicker());
 
-        Button refreshButton = buildCompactActionButton(AppText.pick(this, "再読み込み", "Refresh"));
-        refreshButton.setOnClickListener(v -> refreshAllData());
+        Button refreshButton = buildTightActionButton(AppText.pick(this, "更新", "Update"));
+        refreshButton.setOnClickListener(v -> {
+            try {
+                refreshAllData();
+            } catch (RuntimeException e) {
+                Log.w(TAG, "refresh button failed", e);
+            }
+        });
 
-        controlBar.addView(calendarButton, createWeightedButtonLayoutParams());
-        controlBar.addView(refreshButton, createWeightedButtonLayoutParams());
+        Button wallpaperButton = buildTightActionButton(AppText.pick(this, "壁紙", "Wallpaper"));
+        wallpaperButton.setOnClickListener(v -> showWallpaperMenu());
+
+        controlBar.addView(calendarButton, createTightWeightedButtonLayoutParams());
+        controlBar.addView(refreshButton, createTightWeightedButtonLayoutParams());
+        controlBar.addView(wallpaperButton, createWeightedButtonLayoutParamsWithoutMargin());
+
+        LinearLayout calendarFileBar = new LinearLayout(this);
+        calendarFileBar.setOrientation(LinearLayout.HORIZONTAL);
+        calendarFileBar.setPadding(0, dp(2), 0, 0);
+
+        Button exportCalendarButton = buildTightActionButton(AppText.pick(this, "保存", "Save"));
+        exportCalendarButton.setOnClickListener(v -> launchCalendarExport());
+
+        Button importCalendarButton = buildTightActionButton(AppText.pick(this, "読込", "Load"));
+        importCalendarButton.setOnClickListener(v -> confirmCalendarImport());
+
+        Button syncDeleteButton = buildTightActionButton(AppText.pick(this, "削除", "Delete"));
+        syncDeleteButton.setOnClickListener(v -> showDeleteSyncTargetDialog());
+
+        calendarFileBar.addView(exportCalendarButton, createTightWeightedButtonLayoutParams());
+        calendarFileBar.addView(importCalendarButton, createTightWeightedButtonLayoutParams());
+        calendarFileBar.addView(syncDeleteButton, createWeightedButtonLayoutParamsWithoutMargin());
 
         GridLayout weekdayHeader = new GridLayout(this);
         weekdayHeader.setColumnCount(7);
@@ -302,6 +379,9 @@ public class MainActivity extends Activity {
         monthGridView.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         monthGridView.setGravity(Gravity.CENTER);
         monthGridView.setVerticalScrollBarEnabled(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            monthGridView.setNestedScrollingEnabled(false);
+        }
         monthGridView.setSelector(android.R.color.transparent);
         monthCalendarAdapter = new MonthCalendarAdapter(this, monthDayCells);
         monthGridView.setAdapter(monthCalendarAdapter);
@@ -320,18 +400,7 @@ public class MainActivity extends Activity {
             resetToMonthStart(visibleMonth);
             refreshAllData();
         });
-        monthGridView.setOnItemLongClickListener((parent, view, position, id) -> {
-            MonthDayCell cell = monthDayCells.get(position);
-            selectedDayMillis = cell.dayStartMillis;
-            selectedEventId = -1L;
-            resetScheduleListPosition = true;
-            visibleMonth.setTimeInMillis(cell.dayStartMillis);
-            resetToMonthStart(visibleMonth);
-            refreshAllData();
-            showEventDialog(null);
-            return true;
-        });
-        monthGridView.setOnTouchListener((v, event) -> handleMonthGridTouch(event));
+        monthGridView.setOnTouchListener(this::handleMonthGridTouch);
 
         selectedDateView = new TextView(this);
         selectedDateView.setTextSize(13);
@@ -385,54 +454,58 @@ public class MainActivity extends Activity {
 
         LinearLayout actionBar = new LinearLayout(this);
         actionBar.setOrientation(LinearLayout.HORIZONTAL);
-        actionBar.setPadding(0, dp(4), 0, 0);
+        actionBar.setPadding(0, dp(2), 0, 0);
 
-        Button addButton = buildCompactActionButton(AppText.pick(this, "予定を追加", "Add event"));
-        addButton.setOnClickListener(v -> showEventDialog(null));
+        Button todoButton = buildTightActionButton("TODO");
+        todoButton.setOnClickListener(v -> startActivity(new Intent(this, TodoActivity.class)));
 
-        Button editButton = buildCompactActionButton(AppText.pick(this, "編集", "Edit"));
-        editButton.setOnClickListener(v -> editSelectedEvent());
+        Button diaryButton = buildTightActionButton(AppText.pick(this, "日記", "Diary"));
+        diaryButton.setOnClickListener(v -> startActivity(new Intent(this, DiaryActivity.class)));
 
-        Button deleteButton = buildCompactActionButton(AppText.pick(this, "削除", "Delete"));
-        deleteButton.setOnClickListener(v -> deleteSelectedEvent());
-
-        Button addTodoButton = buildCompactActionButton(AppText.pick(this, "TODO追加", "Add TODO"));
-        addTodoButton.setOnClickListener(v -> showTodoDialog(null));
-
-        Button exportTodoButton = buildCompactActionButton(AppText.pick(this, "TODO保存", "Save TODO"));
-        exportTodoButton.setOnClickListener(v -> launchTodoExport());
-
-        Button importTodoButton = buildCompactActionButton(AppText.pick(this, "TODO読込", "Load TODO"));
-        importTodoButton.setOnClickListener(v -> confirmTodoImport());
-
-        Button todayButton = buildCompactActionButton(AppText.pick(this, "本日", "Today"));
+        Button todayButton = buildTightActionButton(AppText.pick(this, "本日", "Today"));
         todayButton.setOnClickListener(v -> jumpToToday());
 
-        actionBar.addView(addButton, createWeightedButtonLayoutParams());
-        actionBar.addView(editButton, createWeightedButtonLayoutParams());
-        actionBar.addView(deleteButton, createWeightedButtonLayoutParams());
-        actionBar.addView(addTodoButton, createWeightedButtonLayoutParams());
+        Button shiftButton = buildTightActionButton(AppText.pick(this, "シフト入力", "Shift"));
+        shiftButton.setOnClickListener(v -> startActivity(new Intent(this, ShiftActivity.class)));
 
-        LinearLayout todoFileBar = new LinearLayout(this);
-        todoFileBar.setOrientation(LinearLayout.HORIZONTAL);
-        todoFileBar.setPadding(0, dp(4), 0, 0);
-
-        todoFileBar.addView(exportTodoButton, createWeightedButtonLayoutParams());
-        todoFileBar.addView(importTodoButton, createWeightedButtonLayoutParams());
-        todoFileBar.addView(todayButton, createWeightedButtonLayoutParamsWithoutMargin());
+        actionBar.addView(todoButton, createTightWeightedButtonLayoutParams());
+        actionBar.addView(diaryButton, createTightWeightedButtonLayoutParams());
+        actionBar.addView(shiftButton, createTightWeightedButtonLayoutParams());
+        actionBar.addView(todayButton, createWeightedButtonLayoutParamsWithoutMargin());
 
         root.addView(permissionView);
         root.addView(monthBar);
         root.addView(weekdayHeader);
         root.addView(monthGridView);
-        root.addView(selectedDateView);
-        root.addView(listContainer);
         root.addView(actionBar);
-        root.addView(todoFileBar);
         root.addView(controlBar);
+        root.addView(calendarFileBar);
 
-        setContentView(root);
-        installSystemAwareRootPadding(root);
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(false);
+        scrollView.addView(root, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        FrameLayout screenRoot = new FrameLayout(this);
+        screenRoot.setBackgroundColor(DEFAULT_BACKGROUND_COLOR);
+        wallpaperView = new ImageView(this);
+        wallpaperView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        wallpaperView.setAlpha(WALLPAPER_ALPHA);
+        wallpaperView.setVisibility(View.GONE);
+        screenRoot.addView(wallpaperView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+        screenRoot.addView(scrollView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+
+        setContentView(screenRoot);
+        applyPersistedWallpaper();
+        installSystemAwareRootPadding(scrollView);
     }
 
     private void refreshAllData() {
@@ -440,6 +513,17 @@ public class MainActivity extends Activity {
             requestCalendarPermissions();
             return;
         }
+        try {
+            reloadCalendarDataFromProvider();
+        } catch (RuntimeException e) {
+            Log.w(TAG, "provider refresh failed", e);
+            Toast.makeText(this, AppText.pick(this,
+                    "端末カレンダーの更新に失敗しました",
+                    "Failed to update device calendars"), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void reloadCalendarDataFromProvider() {
         loadCalendars();
         refreshMonthGrid();
         refreshEventList();
@@ -456,8 +540,8 @@ public class MainActivity extends Activity {
     private void showCalendarUnavailableState() {
         permissionView.setVisibility(View.VISIBLE);
         permissionView.setText(AppText.pick(this,
-                "書き込み可能なカレンダーがありません。端末で Google カレンダー同期を有効にしてください。",
-                "No writable calendar is available. Enable Google Calendar sync on this device."));
+                "表示できるカレンダーがありません。端末で Google カレンダー同期を有効にしてください。",
+                "No visible calendar is available. Enable Google Calendar sync on this device."));
     }
 
     private void requestCalendarPermissions() {
@@ -499,10 +583,84 @@ public class MainActivity extends Activity {
 
         permissionView.setVisibility(View.GONE);
 
-        if (!containsCalendarId(selectedCalendarId)) {
-            selectedCalendarId = pickInitialCalendarId();
+        if (!isSelectedCalendarAvailable()) {
+            selectedCalendarId = -1L;
             persistCalendarId(selectedCalendarId);
         }
+
+        // Ensure extra calendars are accessible; remove stale IDs
+        for (long extraId : new ArrayList<>(extraCalendarIds)) {
+            if (!containsCalendarId(extraId)) {
+                boolean found = false;
+                for (CalendarRepository.CalendarInfo info : CalendarRepository.getAllCalendars(this)) {
+                    if (info.id == extraId) {
+                        writableCalendars.add(info);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    extraCalendarIds.remove(extraId);
+                }
+            }
+        }
+    }
+
+    private void maybePromptForMainCalendar() {
+        promptForMainCalendar(false);
+    }
+
+    private void promptForMainCalendar(boolean force) {
+        if (!hasCalendarPermissions()) {
+            return;
+        }
+        if (mainCalendarDialogShowing) {
+            return;
+        }
+        if (!force && isSelectedCalendarAvailable()) {
+            return;
+        }
+        if (writableCalendars.isEmpty()) {
+            return;
+        }
+        showSelectMainCalendarDialog();
+    }
+
+    private void showSelectMainCalendarDialog() {
+        List<CalendarRepository.CalendarInfo> candidates = new ArrayList<>(writableCalendars);
+        if (candidates.isEmpty()) {
+            return;
+        }
+        String[] labels = new String[candidates.size()];
+        for (int i = 0; i < candidates.size(); i++) {
+            labels[i] = buildCalendarPickerLabel(candidates.get(i));
+        }
+
+        mainCalendarDialogShowing = true;
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "メインカレンダーを選択", "Select Main Calendar"))
+                .setItems(labels, (dialog, which) -> {
+                    CalendarRepository.CalendarInfo info = candidates.get(which);
+                    selectedCalendarId = info.id;
+                    persistCalendarId(selectedCalendarId);
+                    loadCalendars();
+                    refreshMonthGrid();
+                    refreshEventList();
+                    Toast.makeText(this, AppText.pick(this,
+                            "メインカレンダーを設定しました",
+                            "Main calendar set"), Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(AppText.pick(this, "後で", "Later"), null)
+                .setOnDismissListener(dialog -> mainCalendarDialogShowing = false)
+                .show();
+    }
+
+    private boolean isSelectedCalendarAvailable() {
+        if (selectedCalendarId < 0L) {
+            return false;
+        }
+        CalendarRepository.CalendarInfo info = findCalendarInfo(selectedCalendarId);
+        return info != null;
     }
 
     private void refreshMonthGrid() {
@@ -518,14 +676,17 @@ public class MainActivity extends Activity {
 
         if (hasCalendarPermissions() && selectedCalendarId >= 0L) {
             long gridEndMillis = gridStartMillis + (weekRows * 7L * DAY_IN_MILLIS);
-            List<CalendarRepository.CalendarEvent> monthEvents =
-                    CalendarRepository.getEventsForRange(this, selectedCalendarId, gridStartMillis, gridEndMillis);
+            List<CalendarRepository.CalendarEvent> monthEvents = new ArrayList<>();
+            for (long calId : getDisplayCalendarIds()) {
+                monthEvents.addAll(CalendarRepository.getEventsForRange(this, calId, gridStartMillis, gridEndMillis));
+            }
             distributeEventsByDay(monthEvents, gridStartMillis, gridEndMillis, maxMonthEventsPerDay, monthEventsByDay);
         }
 
         Calendar dayCursor = Calendar.getInstance();
         dayCursor.setTimeInMillis(gridStartMillis);
         long todayStart = startOfDay(System.currentTimeMillis());
+        Set<String> shiftButtonTitles = loadShiftButtonTitles();
 
         int visibleDayCount = weekRows * 7;
         for (int i = 0; i < visibleDayCount; i++) {
@@ -536,7 +697,14 @@ public class MainActivity extends Activity {
             monthDayCells.add(new MonthDayCell(
                     dayStartMillis,
                     String.valueOf(dayCursor.get(Calendar.DAY_OF_MONTH)),
-                    buildDaySummary(dayStartMillis, dayEvents, maxMonthEventsPerDay),
+                    buildDaySummary(dayStartMillis, dayEvents, maxMonthEventsPerDay, shiftButtonTitles),
+                    dayCursor.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY,
+                    dayCursor.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY,
+                    JapaneseHolidayRepository.isHoliday(
+                            dayCursor.get(Calendar.YEAR),
+                            dayCursor.get(Calendar.MONTH) + 1,
+                            dayCursor.get(Calendar.DAY_OF_MONTH)
+                    ),
                     isCurrentMonth,
                     dayStartMillis == todayStart,
                     dayStartMillis == selectedDayMillis
@@ -561,10 +729,9 @@ public class MainActivity extends Activity {
     }
 
     private int getMaxMonthEventsPerDay(int weekRows) {
-        if (weekRows > MIN_MONTH_WEEK_ROWS || getScreenHeightDp() <= COMPACT_SCREEN_HEIGHT_DP) {
-            return COMPACT_MONTH_EVENTS_PER_DAY;
-        }
-        return DEFAULT_MONTH_EVENTS_PER_DAY;
+        return getScreenHeightDp() <= COMPACT_SCREEN_HEIGHT_DP
+                ? COMPACT_MONTH_EVENTS_PER_DAY
+                : DEFAULT_MONTH_EVENTS_PER_DAY;
     }
 
     private int getMonthCellHeightDp(int maxMonthEventsPerDay) {
@@ -623,24 +790,53 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String buildDaySummary(
+    private CharSequence buildDaySummary(
             long dayStartMillis,
             List<CalendarRepository.CalendarEvent> dayEvents,
-            int maxMonthEventsPerDay
+            int maxMonthEventsPerDay,
+            Set<String> shiftButtonTitles
     ) {
         if (dayEvents == null || dayEvents.isEmpty()) {
             return "";
         }
 
-        StringBuilder builder = new StringBuilder();
+        SpannableStringBuilder builder = new SpannableStringBuilder();
         int visibleCount = Math.min(maxMonthEventsPerDay, dayEvents.size());
         for (int i = 0; i < visibleCount; i++) {
             if (i > 0) {
                 builder.append('\n');
             }
-            builder.append(dayEvents.get(i).title);
+            CalendarRepository.CalendarEvent event = dayEvents.get(i);
+            int start = builder.length();
+            builder.append(event.title);
+            int end = builder.length();
+            if (isShiftButtonTitle(event.title, shiftButtonTitles)) {
+                builder.setSpan(new BackgroundColorSpan(0xFF2563EB), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                builder.setSpan(new ForegroundColorSpan(0xFFFFFFFF), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
         }
-        return builder.toString();
+        return builder;
+    }
+
+    private boolean isShiftButtonTitle(String title, Set<String> shiftButtonTitles) {
+        return !TextUtils.isEmpty(title) && shiftButtonTitles.contains(title.trim());
+    }
+
+    private Set<String> loadShiftButtonTitles() {
+        String[] defaults = {
+                "早番", "日勤", "遅番", "準夜", "夜勤",
+                "明け", "休み", "有休", "公休", "希望休",
+                "研修", "出張", "会議", "欠勤", "その他"
+        };
+        SharedPreferences preferences = getSharedPreferences(SHIFT_PREFS_NAME, MODE_PRIVATE);
+        Set<String> titles = new HashSet<>();
+        for (int i = 0; i < defaults.length; i++) {
+            String title = preferences.getString("title_" + i, defaults[i]);
+            if (!TextUtils.isEmpty(title)) {
+                titles.add(title.trim());
+            }
+        }
+        return titles;
     }
 
     private void refreshEventList() {
@@ -657,7 +853,9 @@ public class MainActivity extends Activity {
         eventsForSelectedDay.clear();
         // The selected-day list should always reflect the latest provider data,
         // even if the month grid still has older cached cell summaries.
-        eventsForSelectedDay.addAll(CalendarRepository.getEventsForDay(this, selectedCalendarId, selectedDayMillis));
+        for (long calId : getDisplayCalendarIds()) {
+            eventsForSelectedDay.addAll(CalendarRepository.getEventsForDay(this, calId, selectedDayMillis));
+        }
         todosForSelectedDay.clear();
         todosForSelectedDay.addAll(LocalTodoRepository.getTodos(this));
 
@@ -737,44 +935,552 @@ public class MainActivity extends Activity {
             requestCalendarPermissions();
             return;
         }
-        if (writableCalendars.isEmpty()) {
+        showCalendarPickerAfterSyncRefresh();
+    }
+
+    private void showCalendarPickerAfterSyncRefresh() {
+        loadCalendars();
+        refreshMonthGrid();
+        refreshEventList();
+        List<CalendarRepository.CalendarInfo> freshCalendars = CalendarRepository.getAllCalendars(this);
+        if (writableCalendars.isEmpty() && freshCalendars.isEmpty() && loadCustomSyncTargets().isEmpty()) {
             Toast.makeText(this, AppText.pick(this,
                     "選択できるカレンダーがありません",
                     "No calendar can be selected"), Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String[] labels = new String[writableCalendars.size()];
-        int checkedItem = 0;
-        for (int i = 0; i < writableCalendars.size(); i++) {
-            CalendarRepository.CalendarInfo info = writableCalendars.get(i);
-            labels[i] = info.displayName + " / " + info.accountName;
+        List<String> customTargets = loadCustomSyncTargets();
+        List<String> labels = new ArrayList<>();
+        List<Long> calendarIds = new ArrayList<>();
+        Set<Long> listedCalendarIds = new HashSet<>();
+
+        for (CalendarRepository.CalendarInfo info : writableCalendars) {
+            String label = buildCalendarPickerLabel(info);
             if (info.id == selectedCalendarId) {
-                checkedItem = i;
+                label = AppText.pick(this, "(メイン) ", "(Main) ") + label;
+            }
+            labels.add(label);
+            calendarIds.add(info.id);
+            listedCalendarIds.add(info.id);
+        }
+
+        for (CalendarRepository.CalendarInfo info : freshCalendars) {
+            if (!listedCalendarIds.add(info.id)) {
+                continue;
+            }
+            String label = buildCalendarPickerLabel(info);
+            if (info.id == selectedCalendarId) {
+                label = AppText.pick(this, "(メイン) ", "(Main) ") + label;
+            }
+            labels.add(label);
+            calendarIds.add(info.id);
+        }
+
+        for (String target : customTargets) {
+            CalendarRepository.CalendarInfo resolved = resolveCustomSyncTarget(target);
+            if (resolved == null) {
+                labels.add(buildCustomSyncTargetLabel(target));
+                calendarIds.add(-1L);
+            } else if (listedCalendarIds.add(resolved.id)) {
+                String label = buildCalendarPickerLabel(resolved);
+                if (resolved.id == selectedCalendarId) {
+                    label = AppText.pick(this, "(メイン) ", "(Main) ") + label;
+                }
+                labels.add(label);
+                calendarIds.add(resolved.id);
             }
         }
 
+        boolean[] checked = new boolean[labels.size()];
+        for (int i = 0; i < calendarIds.size(); i++) {
+            long id = calendarIds.get(i);
+            checked[i] = (id == selectedCalendarId) || extraCalendarIds.contains(id);
+        }
+        boolean[] current = checked.clone();
+
         new AlertDialog.Builder(this)
-                .setTitle(AppText.pick(this, "同期先カレンダーを選択", "Select sync calendar"))
-                .setSingleChoiceItems(labels, checkedItem, (dialog, which) -> {
-                    selectedCalendarId = writableCalendars.get(which).id;
-                    persistCalendarId(selectedCalendarId);
-                    selectedEventId = -1L;
+                .setTitle(AppText.pick(this, "表示するカレンダーを選択", "Select Calendars to Display"))
+                .setMultiChoiceItems(labels.toArray(new String[0]), checked, (dialog, which, isChecked) -> {
+                    long id = calendarIds.get(which);
+                    if (id < 0L) {
+                        Toast.makeText(this, AppText.pick(this,
+                                "このカレンダーは端末で見つかりません",
+                                "This calendar was not found on this device"), Toast.LENGTH_LONG).show();
+                        ((AlertDialog) dialog).getListView().setItemChecked(which, false);
+                        current[which] = false;
+                        return;
+                    }
+                    if (id == selectedCalendarId && !isChecked) {
+                        Toast.makeText(this, AppText.pick(this,
+                                "メインカレンダーは外せません",
+                                "Cannot uncheck the main calendar"), Toast.LENGTH_SHORT).show();
+                        ((AlertDialog) dialog).getListView().setItemChecked(which, true);
+                        current[which] = true;
+                        return;
+                    }
+                    current[which] = isChecked;
+                })
+                .setPositiveButton(AppText.pick(this, "確認", "OK"), (dialog, which) -> {
+                    extraCalendarIds.clear();
+                    for (int i = 0; i < calendarIds.size(); i++) {
+                        long id = calendarIds.get(i);
+                        if (id >= 0L && id != selectedCalendarId && current[i]) {
+                            extraCalendarIds.add(id);
+                        }
+                    }
+                    persistExtraCalendarIds();
                     loadCalendars();
                     refreshMonthGrid();
                     refreshEventList();
-                    dialog.dismiss();
+                })
+                .setNeutralButton(AppText.pick(this, "カレンダーを追加", "Add Calendar"), (dialog, which) ->
+                        showCalendarEmailAddDialog())
+                .setNegativeButton(AppText.pick(this, "閉じる", "Close"), null)
+                .show();
+    }
+
+    private void showCalendarManagerDialog() {
+        if (!hasCalendarPermissions()) {
+            requestCalendarPermissions();
+            Toast.makeText(this, AppText.pick(this,
+                    "カレンダーの権限を許可してから再度お試しください",
+                    "Please grant calendar permission and try again"), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        loadCalendars();
+        List<CalendarRepository.CalendarInfo> freshCalendars = CalendarRepository.getAllCalendars(this);
+        List<String> customTargets = loadCustomSyncTargets();
+
+        if (freshCalendars.isEmpty() && customTargets.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle(AppText.pick(this, "カレンダーの追加", "Add Calendar"))
+                    .setMessage(AppText.pick(this,
+                            "端末で表示できるカレンダーがありません。",
+                            "No calendars are available on this device."))
+                    .setNeutralButton(AppText.pick(this, "カレンダーを追加", "Add Calendar"), (d, i) ->
+                            showCalendarEmailAddDialog())
+                    .setNegativeButton(AppText.pick(this, "閉じる", "Close"), null)
+                    .show();
+            return;
+        }
+
+        List<String> labelsList = new ArrayList<>();
+        List<Long> resolvedIds = new ArrayList<>();
+        Set<Long> listedCalendarIds = new HashSet<>();
+
+        for (CalendarRepository.CalendarInfo info : freshCalendars) {
+            labelsList.add(buildCalendarPickerLabel(info));
+            resolvedIds.add(info.id);
+            listedCalendarIds.add(info.id);
+        }
+
+        for (String target : customTargets) {
+            CalendarRepository.CalendarInfo info = resolveCustomSyncTargetNoSideEffect(target);
+            if (info != null) {
+                if (listedCalendarIds.add(info.id)) {
+                    labelsList.add(buildCalendarPickerLabel(info));
+                    resolvedIds.add(info.id);
+                }
+            } else {
+                labelsList.add(buildCustomSyncTargetLabel(target));
+                resolvedIds.add(-1L);
+            }
+        }
+
+        String[] labels = labelsList.toArray(new String[0]);
+        boolean[] checked = new boolean[resolvedIds.size()];
+        boolean[] current = new boolean[resolvedIds.size()];
+        for (int i = 0; i < resolvedIds.size(); i++) {
+            long id = resolvedIds.get(i);
+            boolean isActive = id >= 0L && (id == selectedCalendarId || extraCalendarIds.contains(id));
+            checked[i] = isActive;
+            current[i] = isActive;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "カレンダーの追加・表示切替", "Calendar Management"))
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> {
+                    long id = resolvedIds.get(which);
+                    if (id < 0L) {
+                        Toast.makeText(this, AppText.pick(this,
+                                "このカレンダーは端末に同期されていません",
+                                "This calendar is not synced to this device"), Toast.LENGTH_SHORT).show();
+                        ((AlertDialog) dialog).getListView().setItemChecked(which, false);
+                        current[which] = false;
+                        return;
+                    }
+                    if (id == selectedCalendarId && !isChecked) {
+                        Toast.makeText(this, AppText.pick(this,
+                                "メインカレンダーは外せません",
+                                "Cannot uncheck the main calendar"), Toast.LENGTH_SHORT).show();
+                        ((AlertDialog) dialog).getListView().setItemChecked(which, true);
+                        current[which] = true;
+                        return;
+                    }
+                    current[which] = isChecked;
+                })
+                .setNeutralButton(AppText.pick(this, "カレンダーを追加", "Add Calendar"), (d, i) ->
+                        showCalendarEmailAddDialog())
+                .setPositiveButton(AppText.pick(this, "確認", "OK"), (dialog, which) -> {
+                    for (int i = 0; i < resolvedIds.size(); i++) {
+                        long id = resolvedIds.get(i);
+                        if (id < 0L || id == selectedCalendarId) continue;
+                        if (current[i]) {
+                            extraCalendarIds.add(id);
+                        } else {
+                            extraCalendarIds.remove(id);
+                        }
+                    }
+                    persistExtraCalendarIds();
+                    loadCalendars();
+                    refreshMonthGrid();
+                    refreshEventList();
                 })
                 .setNegativeButton(AppText.pick(this, "閉じる", "Close"), null)
                 .show();
     }
 
-    private void showEventDialog(CalendarRepository.CalendarEvent existingEvent) {
-        if (!ensureCalendarReadyForEventOperation()) {
+    private void showCalendarEmailAddDialog() {
+        EditText input = new EditText(this);
+        input.setHint(AppText.pick(this, "例: friend@gmail.com", "Example: friend@gmail.com"));
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        int padding = dp(16);
+        input.setPadding(padding, padding, padding, padding);
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "カレンダーを追加", "Add Calendar"))
+                .setMessage(AppText.pick(this,
+                        "追加するカレンダーのメールアドレスを入力してください。\n共有を許可されたカレンダーは共有元のメールアドレスを入力してください。",
+                        "Enter the email address of the calendar to add.\nFor calendars shared with you, enter the email address of the owner who shared it."))
+                .setView(input)
+                .setPositiveButton(AppText.pick(this, "検索", "Search"), (dialog, which) -> {
+                    String email = input.getText().toString().trim();
+                    if (TextUtils.isEmpty(email)) {
+                        return;
+                    }
+                    loadCalendars();
+                    List<CalendarRepository.CalendarInfo> matches = new ArrayList<>();
+                    for (CalendarRepository.CalendarInfo info : CalendarRepository.getAllCalendars(this)) {
+                        if (matchesSyncTarget(info, email)) {
+                            matches.add(info);
+                        }
+                    }
+                    if (matches.isEmpty()) {
+                        // 端末に未同期 → メールアドレスのみ保存（同期後に自動で反映）
+                        saveCustomSyncTarget(email);
+                        Toast.makeText(this, AppText.pick(this,
+                                "カレンダーを登録しました（端末に同期後に自動で反映されます）",
+                                "Calendar saved (will appear automatically once synced to this device)"),
+                                Toast.LENGTH_LONG).show();
+                    } else {
+                        showCalendarSelectionForAddDialog(email, matches);
+                    }
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private void showCalendarSelectionForAddDialog(
+            String email, List<CalendarRepository.CalendarInfo> matches) {
+        String[] labels = new String[matches.size()];
+        boolean[] checked = new boolean[matches.size()];
+        for (int i = 0; i < matches.size(); i++) {
+            CalendarRepository.CalendarInfo info = matches.get(i);
+            String label = info.displayName + " / " + info.accountName;
+            if (!info.canWrite()) {
+                label += AppText.pick(this, " / 閲覧のみ", " / Read only");
+            }
+            labels[i] = label;
+            checked[i] = true;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "追加するカレンダーを選択", "Select Calendars to Add"))
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) ->
+                        checked[which] = isChecked)
+                .setPositiveButton(AppText.pick(this, "追加", "Add"), (dialog, which) -> {
+                    int added = 0;
+                    for (int i = 0; i < matches.size(); i++) {
+                        if (!checked[i]) continue;
+                        CalendarRepository.CalendarInfo info = matches.get(i);
+                        saveCustomSyncTarget("id:" + info.id + ":" + email);
+                        if (info.id != selectedCalendarId) {
+                            extraCalendarIds.add(info.id);
+                        }
+                        added++;
+                    }
+                    if (added > 0) {
+                        persistExtraCalendarIds();
+                        loadCalendars();
+                        refreshMonthGrid();
+                        refreshEventList();
+                        Toast.makeText(this, AppText.pick(this,
+                                "カレンダーを追加しました",
+                                "Calendar added"),
+                                Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private void showDeleteSyncTargetDialog() {
+        List<String> customTargets = loadCustomSyncTargets();
+        if (customTargets.isEmpty()) {
+            Toast.makeText(this, AppText.pick(this,
+                    "削除できるカレンダーがありません",
+                    "No calendars to delete"), Toast.LENGTH_SHORT).show();
             return;
         }
 
+        String[] labels = new String[customTargets.size()];
+        for (int i = 0; i < customTargets.size(); i++) {
+            labels[i] = buildCustomSyncTargetLabel(customTargets.get(i));
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "カレンダーを削除", "Delete Calendar"))
+                .setItems(labels, (dialog, which) -> {
+                    removeCustomSyncTarget(customTargets.get(which));
+                    Toast.makeText(this, AppText.pick(this,
+                            "カレンダーを削除しました",
+                            "Calendar deleted"), Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private void saveCustomSyncTarget(String target) {
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        Set<String> targets = new HashSet<>(preferences.getStringSet(CUSTOM_SYNC_TARGETS_KEY, new HashSet<>()));
+        targets.add(target);
+        preferences.edit().putStringSet(CUSTOM_SYNC_TARGETS_KEY, targets).apply();
+    }
+
+    private void removeCustomSyncTarget(String target) {
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        Set<String> targets = new HashSet<>(preferences.getStringSet(CUSTOM_SYNC_TARGETS_KEY, new HashSet<>()));
+        targets.remove(target);
+        preferences.edit().putStringSet(CUSTOM_SYNC_TARGETS_KEY, targets).apply();
+    }
+
+    private List<String> loadCustomSyncTargets() {
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        Set<String> stored = preferences.getStringSet(CUSTOM_SYNC_TARGETS_KEY, new HashSet<>());
+        return new ArrayList<>(stored);
+    }
+
+    private String buildCustomSyncTargetLabel(String target) {
+        CalendarRepository.CalendarInfo info = resolveCustomSyncTargetNoSideEffect(target);
+        if (info != null) {
+            return buildCalendarPickerLabel(info);
+        }
+        if (target != null && target.startsWith("id:")) {
+            String rest = target.substring(3);
+            int colonIdx = rest.indexOf(':');
+            String email = colonIdx >= 0 ? rest.substring(colonIdx + 1) : null;
+            if (!TextUtils.isEmpty(email)) {
+                return AppText.pick(this, "追加: ", "Added: ") + email
+                        + AppText.pick(this, " (未同期)", " (not synced)");
+            }
+            return AppText.pick(this, "追加済み (端末に未同期)", "Added (not synced to device)");
+        }
+        return AppText.pick(this, "追加: ", "Added: ") + target;
+    }
+
+    private CalendarRepository.CalendarInfo resolveCustomSyncTarget(String target) {
+        CalendarRepository.CalendarInfo info = resolveCustomSyncTargetNoSideEffect(target);
+        if (info != null && !containsCalendarId(info.id)) {
+            writableCalendars.add(info);
+        }
+        return info;
+    }
+
+    private CalendarRepository.CalendarInfo resolveCustomSyncTargetNoSideEffect(String target) {
+        if (target != null && target.startsWith("id:")) {
+            String rest = target.substring(3);
+            int colonIdx = rest.indexOf(':');
+            String idStr = colonIdx >= 0 ? rest.substring(0, colonIdx) : rest;
+            String emailFallback = colonIdx >= 0 ? rest.substring(colonIdx + 1) : null;
+            try {
+                long calendarId = Long.parseLong(idStr);
+                for (CalendarRepository.CalendarInfo info : writableCalendars) {
+                    if (info.id == calendarId) return info;
+                }
+                for (CalendarRepository.CalendarInfo info : CalendarRepository.getAllCalendars(this)) {
+                    if (info.id == calendarId) return info;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+            // IDで見つからない場合、メアドフォールバック（別端末対応）
+            if (!TextUtils.isEmpty(emailFallback)) {
+                for (CalendarRepository.CalendarInfo info : writableCalendars) {
+                    if (matchesSyncTarget(info, emailFallback)) return info;
+                }
+                for (CalendarRepository.CalendarInfo info : CalendarRepository.getAllCalendars(this)) {
+                    if (matchesSyncTarget(info, emailFallback)) return info;
+                }
+            }
+            return null;
+        }
+        // Legacy: string matching for entries saved before the id: format
+        String normalizedTarget = target == null ? "" : target.trim();
+        if (TextUtils.isEmpty(normalizedTarget)) return null;
+        for (CalendarRepository.CalendarInfo info : writableCalendars) {
+            if (matchesSyncTarget(info, normalizedTarget)) return info;
+        }
+        for (CalendarRepository.CalendarInfo info : CalendarRepository.getAllCalendars(this)) {
+            if (matchesSyncTarget(info, normalizedTarget)) return info;
+        }
+        return null;
+    }
+
+    private boolean matchesSyncTarget(CalendarRepository.CalendarInfo info, String target) {
+        if (TextUtils.isEmpty(target)) {
+            return false;
+        }
+        String normalizedTarget = normalizeSyncTargetForMatch(target);
+        return matchesSyncTargetValue(normalizedTarget, info.accountName)
+                || matchesSyncTargetValue(normalizedTarget, info.displayName)
+                || matchesSyncTargetValue(normalizedTarget, info.ownerAccount)
+                || matchesSyncTargetValue(normalizedTarget, info.displayName + "/" + info.accountName)
+                || matchesSyncTargetValue(normalizedTarget, info.accountName + "/" + info.displayName)
+                || matchesSyncTargetValue(normalizedTarget, info.displayName + "/" + info.ownerAccount)
+                || matchesSyncTargetValue(normalizedTarget, info.ownerAccount + "/" + info.displayName)
+                || matchesSyncTargetValue(normalizedTarget, AppText.pick(this, "追加: ", "Added: ") + info.accountName)
+                || matchesSyncTargetValue(normalizedTarget, AppText.pick(this, "追加: ", "Added: ") + info.displayName);
+    }
+
+    private boolean matchesSyncTargetValue(String normalizedTarget, String value) {
+        return !TextUtils.isEmpty(value)
+                && normalizedTarget.equals(normalizeSyncTargetForMatch(value));
+    }
+
+    private String normalizeSyncTargetForMatch(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.trim()
+                .replace('／', '/')
+                .replaceAll("\\s*/\\s*", "/")
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeSyncTarget(String raw) {
+        return raw == null ? "" : raw.trim();
+    }
+
+    private String buildCalendarPickerLabel(CalendarRepository.CalendarInfo info) {
+        String label = info.displayName + " / " + info.accountName;
+        if (!info.canWrite()) {
+            label += AppText.pick(this, " / 閲覧のみ", " / Read only");
+        }
+        return label;
+    }
+
+    private void confirmHolidayImport() {
+        if (!ensureSelectedCalendarWritable()) {
+            return;
+        }
+        int year = visibleMonth.get(Calendar.YEAR);
+        List<JapaneseHolidayRepository.Holiday> holidays = JapaneseHolidayRepository.getHolidaysForYear(year);
+        if (holidays.isEmpty()) {
+            Toast.makeText(this, AppText.pick(this,
+                    year + "年の祝日データはまだ入っていません",
+                    "Holiday data for " + year + " is not available yet"), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "祝日を入力", "Add holidays"))
+                .setMessage(AppText.pick(this,
+                        year + "年の祝日を終日予定として追加します。既に同じ日の同じ祝日名がある場合は追加しません。",
+                        "Add " + year + " holidays as all-day events. Existing holidays with the same date and title are skipped."))
+                .setPositiveButton(AppText.pick(this, "入力", "Add"), (dialog, which) -> importHolidaysForYear(year, holidays))
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private void importHolidaysForYear(int year, List<JapaneseHolidayRepository.Holiday> holidays) {
+        long rangeStartMillis = buildLocalDateMillis(year, 1, 1);
+        long rangeEndMillis = buildLocalDateMillis(year + 1, 1, 1);
+        List<CalendarRepository.CalendarEvent> existingEvents = new ArrayList<>();
+        for (long calId : getDisplayCalendarIds()) {
+            existingEvents.addAll(CalendarRepository.getEventsForRange(this, calId, rangeStartMillis, rangeEndMillis));
+        }
+
+        int insertedCount = 0;
+        for (JapaneseHolidayRepository.Holiday holiday : holidays) {
+            long startMillis = buildLocalDateMillis(year, holiday.month, holiday.day);
+            if (containsHolidayEvent(existingEvents, startMillis, holiday.title)) {
+                continue;
+            }
+            long eventId = CalendarRepository.insertEvent(
+                    this,
+                    selectedCalendarId,
+                    holiday.title,
+                    AppText.pick(this, "祝日自動入力", "Holiday auto entry"),
+                    startMillis,
+                    startMillis + DAY_IN_MILLIS,
+                    true
+            );
+            if (eventId >= 0L) {
+                insertedCount++;
+                existingEvents.add(new CalendarRepository.CalendarEvent(
+                        eventId,
+                        eventId,
+                        selectedCalendarId,
+                        holiday.title,
+                        AppText.pick(this, "祝日自動入力", "Holiday auto entry"),
+                        startMillis,
+                        startMillis + DAY_IN_MILLIS,
+                        true
+                ));
+            }
+        }
+
+        refreshMonthGrid();
+        refreshEventList();
+        Toast.makeText(this, AppText.pick(this,
+                insertedCount + " 件の祝日を入力しました",
+                "Added " + insertedCount + " holiday(s)"), Toast.LENGTH_LONG).show();
+    }
+
+    private boolean containsHolidayEvent(
+            List<CalendarRepository.CalendarEvent> events,
+            long startMillis,
+            String title
+    ) {
+        for (CalendarRepository.CalendarEvent event : events) {
+            if (event.allDay
+                    && event.startMillis == startMillis
+                    && TextUtils.equals(event.title, title)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void showEventDialog(CalendarRepository.CalendarEvent existingEvent) {
         boolean editing = existingEvent != null;
+        if (editing) {
+            if (!ensureEventCalendarWritable(existingEvent)) {
+                return;
+            }
+        } else if (!ensureAnyWritableDisplayCalendar()) {
+            return;
+        }
+
+        List<CalendarRepository.CalendarInfo> writableDisplayCalendars = editing
+                ? new ArrayList<>()
+                : getWritableDisplayCalendars();
+        final long[] targetCalendarId = {
+                editing ? existingEvent.calendarId : writableDisplayCalendars.get(0).id
+        };
+
         Calendar startCalendar = Calendar.getInstance();
         Calendar endCalendar = Calendar.getInstance();
 
@@ -815,6 +1521,22 @@ public class MainActivity extends Activity {
         allDayCheck.setText(AppText.pick(this, "終日予定", "All-day event"));
         allDayCheck.setChecked(editing && existingEvent.allDay);
 
+        Button targetCalendarButton = null;
+        if (!editing && writableDisplayCalendars.size() > 1) {
+            targetCalendarButton = buildActionButton("");
+            Button finalTargetCalendarButton = targetCalendarButton;
+            Runnable bindTargetCalendarLabel = () -> {
+                CalendarRepository.CalendarInfo info = findCalendarInfo(targetCalendarId[0]);
+                String label = info == null
+                        ? AppText.pick(this, "登録先を選択", "Select calendar")
+                        : buildCalendarPickerLabel(info);
+                finalTargetCalendarButton.setText(AppText.pick(this, "登録先: ", "Calendar: ") + label);
+            };
+            targetCalendarButton.setOnClickListener(v ->
+                    showEventTargetCalendarPicker(writableDisplayCalendars, targetCalendarId, bindTargetCalendarLabel));
+            bindTargetCalendarLabel.run();
+        }
+
         Button startDateButton = buildActionButton("");
         Button startTimeButton = buildActionButton("");
         Button endDateButton = buildActionButton("");
@@ -841,15 +1563,32 @@ public class MainActivity extends Activity {
         addFormField(form, titleInput);
         addFormField(form, notesInput);
         addFormField(form, allDayCheck);
+        if (targetCalendarButton != null) {
+            addFormField(form, targetCalendarButton);
+        }
         addFormField(form, startDateButton);
         addFormField(form, startTimeButton);
         addFormField(form, endDateButton);
+
+        ScrollView formScrollView = new ScrollView(this);
+        formScrollView.setFillViewport(false);
+        formScrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        DisplayMetrics dialogMetrics = getResources().getDisplayMetrics();
+        int maxDialogFormHeight = Math.max(dp(280), (int) (dialogMetrics.heightPixels * 0.58f));
+        formScrollView.addView(form, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+        formScrollView.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                maxDialogFormHeight
+        ));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(editing
                         ? AppText.pick(this, "予定を編集", "Edit event")
                         : AppText.pick(this, "予定を追加", "Add event"))
-                .setView(form)
+                .setView(formScrollView)
                 .setPositiveButton(editing
                         ? AppText.pick(this, "更新", "Update")
                         : AppText.pick(this, "保存", "Save"), null)
@@ -899,7 +1638,7 @@ public class MainActivity extends Activity {
                     success = CalendarRepository.updateEvent(
                             this,
                             existingEvent.eventId,
-                            selectedCalendarId,
+                            existingEvent.calendarId,
                             title,
                             description,
                             startMillis,
@@ -909,7 +1648,7 @@ public class MainActivity extends Activity {
                 } else {
                     long newEventId = CalendarRepository.insertEvent(
                             this,
-                            selectedCalendarId,
+                            targetCalendarId[0],
                             title,
                             description,
                             startMillis,
@@ -1114,23 +1853,83 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    private void showDayEventActionPicker(long dayStartMillis) {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
+
+        selectedDayMillis = dayStartMillis;
+        selectedEventId = -1L;
+        visibleMonth.setTimeInMillis(dayStartMillis);
+        resetToMonthStart(visibleMonth);
+        refreshMonthGrid();
+        refreshEventList();
+
+        String[] eventLabels = new String[eventsForSelectedDay.size() + 1];
+        eventLabels[0] = AppText.pick(this, "予定を追加", "Add event");
+        for (int i = 0; i < eventsForSelectedDay.size(); i++) {
+            eventLabels[i + 1] = buildDeleteEventLabel(eventsForSelectedDay.get(i));
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "操作を選択", "Select action"))
+                .setItems(eventLabels, (dialog, which) -> {
+                    if (which == 0) {
+                        showEventDialog(null);
+                        return;
+                    }
+
+                    CalendarRepository.CalendarEvent event = eventsForSelectedDay.get(which - 1);
+                    selectedEventId = event.id;
+                    scheduleListAdapter.setSelectedEventId(selectedEventId);
+                    scheduleListAdapter.notifyDataSetChanged();
+                    showEventActionsDialog(event);
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
     private void deleteSelectedEvent() {
         if (!ensureCalendarReadyForEventOperation()) {
             return;
         }
-        CalendarRepository.CalendarEvent event = getSelectedEvent();
-        if (event == null) {
+        if (eventsForSelectedDay.isEmpty()) {
             Toast.makeText(this, AppText.pick(this,
-                    "削除する予定を選んでください",
-                    "Select an event to delete"), Toast.LENGTH_SHORT).show();
+                    "削除できる予定がありません",
+                    "No events to delete"), Toast.LENGTH_SHORT).show();
             return;
         }
 
-        showDeleteEventDialog(event);
+        String[] eventLabels = new String[eventsForSelectedDay.size()];
+        for (int i = 0; i < eventsForSelectedDay.size(); i++) {
+            eventLabels[i] = buildDeleteEventLabel(eventsForSelectedDay.get(i));
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "削除する予定を選択", "Select event to delete"))
+                .setItems(eventLabels, (dialog, which) -> {
+                    CalendarRepository.CalendarEvent event = eventsForSelectedDay.get(which);
+                    selectedEventId = event.id;
+                    scheduleListAdapter.setSelectedEventId(selectedEventId);
+                    scheduleListAdapter.notifyDataSetChanged();
+                    showDeleteEventDialog(event);
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private String buildDeleteEventLabel(CalendarRepository.CalendarEvent event) {
+        String timeText;
+        if (event.allDay) {
+            timeText = AppText.pick(this, "終日", "All day");
+        } else {
+            timeText = formatTime(event.startMillis) + " - " + formatTime(event.endMillis);
+        }
+        return timeText + "  " + event.title;
     }
 
     private void showDeleteEventDialog(CalendarRepository.CalendarEvent event) {
-        if (!ensureCalendarReadyForEventOperation()) {
+        if (!ensureEventCalendarWritable(event)) {
             return;
         }
         new AlertDialog.Builder(this)
@@ -1188,6 +1987,85 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private boolean ensureSelectedCalendarWritable() {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return false;
+        }
+        CalendarRepository.CalendarInfo info = findCalendarInfo(selectedCalendarId);
+        if (info != null && info.canWrite()) {
+            return true;
+        }
+        Toast.makeText(this, AppText.pick(this,
+                "このカレンダーは閲覧のみです。予定を追加・変更できません。",
+                "This calendar is read only. Events cannot be added or changed."), Toast.LENGTH_LONG).show();
+        return false;
+    }
+
+    private boolean ensureAnyWritableDisplayCalendar() {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return false;
+        }
+        if (!getWritableDisplayCalendars().isEmpty()) {
+            return true;
+        }
+        Toast.makeText(this, AppText.pick(this,
+                "表示中のカレンダーに書き込み可能なものがありません。",
+                "No visible calendar can be written to."), Toast.LENGTH_LONG).show();
+        return false;
+    }
+
+    private boolean ensureEventCalendarWritable(CalendarRepository.CalendarEvent event) {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return false;
+        }
+        CalendarRepository.CalendarInfo info = findCalendarInfo(event.calendarId);
+        if (info != null && info.canWrite()) {
+            return true;
+        }
+        Toast.makeText(this, AppText.pick(this,
+                "この予定のカレンダーは閲覧のみです。変更できません。",
+                "This event's calendar is read only and cannot be changed."), Toast.LENGTH_LONG).show();
+        return false;
+    }
+
+    private List<CalendarRepository.CalendarInfo> getWritableDisplayCalendars() {
+        List<CalendarRepository.CalendarInfo> result = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (long calendarId : getDisplayCalendarIds()) {
+            CalendarRepository.CalendarInfo info = findCalendarInfo(calendarId);
+            if (info != null && info.canWrite() && seen.add(info.id)) {
+                result.add(info);
+            }
+        }
+        return result;
+    }
+
+    private void showEventTargetCalendarPicker(
+            List<CalendarRepository.CalendarInfo> candidates,
+            long[] targetCalendarId,
+            Runnable onSelected
+    ) {
+        String[] labels = new String[candidates.size()];
+        int checkedItem = 0;
+        for (int i = 0; i < candidates.size(); i++) {
+            CalendarRepository.CalendarInfo info = candidates.get(i);
+            labels[i] = buildCalendarPickerLabel(info);
+            if (info.id == targetCalendarId[0]) {
+                checkedItem = i;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "登録先カレンダーを選択", "Select calendar"))
+                .setSingleChoiceItems(labels, checkedItem, (dialog, which) -> {
+                    targetCalendarId[0] = candidates.get(which).id;
+                    onSelected.run();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
     private CalendarRepository.CalendarInfo findCalendarInfo(long calendarId) {
         for (CalendarRepository.CalendarInfo info : writableCalendars) {
             if (info.id == calendarId) {
@@ -1197,24 +2075,61 @@ public class MainActivity extends Activity {
         return null;
     }
 
-    private boolean handleMonthGridTouch(MotionEvent event) {
+    private boolean handleMonthGridTouch(View view, MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 monthTouchDownX = event.getX();
                 monthTouchDownY = event.getY();
+                monthLongPressTriggered = false;
+                monthLongPressPosition = monthGridView.pointToPosition((int) event.getX(), (int) event.getY());
+                startPendingMonthLongPress(view);
                 return false;
-            case MotionEvent.ACTION_UP:
-                float deltaX = event.getX() - monthTouchDownX;
-                float deltaY = event.getY() - monthTouchDownY;
-                if (Math.abs(deltaX) > dp(64) && Math.abs(deltaY) < dp(48)) {
-                    shiftMonth(deltaX < 0 ? 1 : -1);
-                    return true;
+            case MotionEvent.ACTION_MOVE:
+                float moveDeltaX = event.getX() - monthTouchDownX;
+                float moveDeltaY = event.getY() - monthTouchDownY;
+                int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
+                if (Math.abs(moveDeltaX) > touchSlop || Math.abs(moveDeltaY) > touchSlop) {
+                    cancelPendingMonthLongPress();
                 }
                 return false;
+            case MotionEvent.ACTION_UP:
+                boolean consumed = monthLongPressTriggered;
+                cancelPendingMonthLongPress();
+                return consumed;
             case MotionEvent.ACTION_CANCEL:
+                cancelPendingMonthLongPress();
                 return false;
             default:
                 return false;
+        }
+    }
+
+    private void startPendingMonthLongPress(View touchedView) {
+        cancelPendingMonthLongPress();
+        if (monthLongPressPosition == AdapterView.INVALID_POSITION
+                || monthLongPressPosition < 0
+                || monthLongPressPosition >= monthDayCells.size()) {
+            return;
+        }
+
+        monthLongPressRunnable = () -> {
+            if (monthLongPressPosition == AdapterView.INVALID_POSITION
+                    || monthLongPressPosition < 0
+                    || monthLongPressPosition >= monthDayCells.size()) {
+                return;
+            }
+            monthLongPressTriggered = true;
+            touchedView.performLongClick();
+            MonthDayCell cell = monthDayCells.get(monthLongPressPosition);
+            showDayEventActionPicker(cell.dayStartMillis);
+        };
+        monthLongPressHandler.postDelayed(monthLongPressRunnable, ViewConfiguration.getLongPressTimeout());
+    }
+
+    private void cancelPendingMonthLongPress() {
+        if (monthLongPressRunnable != null) {
+            monthLongPressHandler.removeCallbacks(monthLongPressRunnable);
+            monthLongPressRunnable = null;
         }
     }
 
@@ -1222,6 +2137,7 @@ public class MainActivity extends Activity {
         visibleMonth.add(Calendar.MONTH, delta);
         resetToMonthStart(visibleMonth);
         refreshMonthGrid();
+        refreshEventList();
     }
 
     private void jumpToToday() {
@@ -1291,6 +2207,17 @@ public class MainActivity extends Activity {
         return button;
     }
 
+    private Button buildTightActionButton(String text) {
+        Button button = buildActionButton(text);
+        button.setTextSize(11);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setPadding(dp(6), dp(4), dp(6), dp(4));
+        return button;
+    }
+
     private LinearLayout.LayoutParams createWeightedButtonLayoutParams() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 0,
@@ -1308,6 +2235,50 @@ public class MainActivity extends Activity {
         );
         params.weight = 1f;
         return params;
+    }
+
+    private LinearLayout.LayoutParams createTightWeightedButtonLayoutParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.weight = 1f;
+        params.rightMargin = dp(1);
+        return params;
+    }
+
+    private void launchCalendarExport() {
+        if (!ensureCalendarReadyForEventOperation()) {
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, buildCalendarBackupFileName());
+        startActivityForResult(intent, REQUEST_EXPORT_CALENDAR);
+    }
+
+    private void confirmCalendarImport() {
+        if (!ensureSelectedCalendarWritable()) {
+            return;
+        }
+        CalendarRepository.CalendarInfo info = findCalendarInfo(selectedCalendarId);
+        String calendarName = info == null ? "" : info.displayName;
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "予定を読み込み", "Load events"))
+                .setMessage(AppText.pick(this,
+                        "ファイル内の予定を現在の同期先「" + calendarName + "」へ追加します。別の同期先へコピーする時は先に同期先を変更してください。",
+                        "Add events from the file to the current calendar \"" + calendarName + "\". To copy to another calendar, select the destination calendar first."))
+                .setPositiveButton(AppText.pick(this, "読込", "Load"), (dialog, which) -> launchCalendarImport())
+                .setNegativeButton(AppText.pick(this, "キャンセル", "Cancel"), null)
+                .show();
+    }
+
+    private void launchCalendarImport() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        startActivityForResult(intent, REQUEST_IMPORT_CALENDAR);
     }
 
     private void launchTodoExport() {
@@ -1334,6 +2305,88 @@ public class MainActivity extends Activity {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/json");
         startActivityForResult(intent, REQUEST_IMPORT_TODOS);
+    }
+
+    private void showWallpaperMenu() {
+        String[] items = {
+                AppText.pick(this, "壁紙選択", "Choose wallpaper"),
+                AppText.pick(this, "壁紙なし", "No wallpaper")
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(AppText.pick(this, "壁紙", "Wallpaper"))
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) {
+                        launchWallpaperPicker();
+                    } else {
+                        removeSelectedWallpaper();
+                    }
+                })
+                .show();
+    }
+
+    private void launchWallpaperPicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQUEST_PICK_WALLPAPER);
+    }
+
+    private void saveWallpaperUri(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+        }
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_WALLPAPER_URI, uri.toString())
+                .apply();
+        applyWallpaperUri(uri);
+        Toast.makeText(this, AppText.pick(this,
+                "壁紙を設定しました",
+                "Wallpaper set"), Toast.LENGTH_SHORT).show();
+    }
+
+    private void removeSelectedWallpaper() {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .remove(KEY_WALLPAPER_URI)
+                .apply();
+        if (wallpaperView != null) {
+            wallpaperView.setImageDrawable(null);
+            wallpaperView.setVisibility(View.GONE);
+        }
+        Toast.makeText(this, AppText.pick(this,
+                "壁紙なしにしました",
+                "Wallpaper removed"), Toast.LENGTH_SHORT).show();
+    }
+
+    private void applyPersistedWallpaper() {
+        String rawUri = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(KEY_WALLPAPER_URI, "");
+        if (TextUtils.isEmpty(rawUri)) {
+            if (wallpaperView != null) {
+                wallpaperView.setVisibility(View.GONE);
+            }
+            return;
+        }
+        applyWallpaperUri(Uri.parse(rawUri));
+    }
+
+    private void applyWallpaperUri(Uri uri) {
+        if (wallpaperView == null) {
+            return;
+        }
+        try {
+            wallpaperView.setImageURI(uri);
+            wallpaperView.setAlpha(WALLPAPER_ALPHA);
+            wallpaperView.setVisibility(View.VISIBLE);
+        } catch (RuntimeException e) {
+            wallpaperView.setVisibility(View.GONE);
+            Toast.makeText(this, AppText.pick(this,
+                    "壁紙画像を読み込めません",
+                    "Could not load wallpaper"), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void exportTodosToUri(Uri uri) {
@@ -1370,6 +2423,107 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void exportCalendarToUri(Uri uri) {
+        try (OutputStream outputStream = getContentResolver().openOutputStream(uri)) {
+            if (outputStream == null) {
+                throw new IOException("output stream is null");
+            }
+
+            String json = exportSelectedCalendarAsJson();
+            outputStream.write(json.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
+            Toast.makeText(this, AppText.pick(this,
+                    "カレンダーを保存しました",
+                    "Calendar saved"), Toast.LENGTH_SHORT).show();
+        } catch (IOException | JSONException e) {
+            Toast.makeText(this, AppText.pick(this,
+                    "カレンダーの保存に失敗しました",
+                    "Failed to save calendar"), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void importCalendarFromUri(Uri uri) {
+        if (!ensureSelectedCalendarWritable()) {
+            return;
+        }
+        try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
+            if (inputStream == null) {
+                throw new IOException("input stream is null");
+            }
+
+            String json = readAllText(inputStream);
+            int importedCount = importCalendarEventsFromJson(json);
+            refreshMonthGrid();
+            refreshEventList();
+            Toast.makeText(this, AppText.pick(this,
+                    importedCount + " 件の予定を読み込みました",
+                    "Loaded " + importedCount + " event(s)"), Toast.LENGTH_LONG).show();
+        } catch (IOException | JSONException e) {
+            Toast.makeText(this, AppText.pick(this,
+                    "カレンダーの読み込みに失敗しました",
+                    "Failed to load calendar"), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String exportSelectedCalendarAsJson() throws JSONException {
+        CalendarRepository.CalendarInfo calendarInfo = findCalendarInfo(selectedCalendarId);
+        List<CalendarRepository.CalendarEvent> events =
+                CalendarRepository.getEventsForCalendar(this, selectedCalendarId);
+
+        JSONObject root = new JSONObject();
+        root.put("type", "calendarjr_events");
+        root.put("version", 1);
+        root.put("exportedAt", System.currentTimeMillis());
+        root.put("sourceCalendarId", selectedCalendarId);
+        root.put("sourceCalendarName", calendarInfo == null ? "" : calendarInfo.displayName);
+        root.put("sourceAccountName", calendarInfo == null ? "" : calendarInfo.accountName);
+
+        JSONArray eventArray = new JSONArray();
+        for (CalendarRepository.CalendarEvent event : events) {
+            JSONObject eventJson = new JSONObject();
+            eventJson.put("title", event.title);
+            eventJson.put("description", event.description);
+            eventJson.put("startMillis", event.startMillis);
+            eventJson.put("endMillis", event.endMillis);
+            eventJson.put("allDay", event.allDay);
+            eventArray.put(eventJson);
+        }
+        root.put("events", eventArray);
+        return root.toString(2);
+    }
+
+    private int importCalendarEventsFromJson(String json) throws JSONException {
+        JSONObject root = new JSONObject(json);
+        JSONArray eventArray = root.getJSONArray("events");
+
+        int importedCount = 0;
+        for (int i = 0; i < eventArray.length(); i++) {
+            JSONObject eventJson = eventArray.getJSONObject(i);
+            String title = eventJson.optString("title", AppText.untitled());
+            String description = eventJson.optString("description", "");
+            long startMillis = eventJson.getLong("startMillis");
+            long endMillis = eventJson.getLong("endMillis");
+            boolean allDay = eventJson.optBoolean("allDay", false);
+            if (endMillis <= startMillis) {
+                endMillis = startMillis + (allDay ? DAY_IN_MILLIS : 60L * 60L * 1000L);
+            }
+
+            long eventId = CalendarRepository.insertEvent(
+                    this,
+                    selectedCalendarId,
+                    TextUtils.isEmpty(title) ? AppText.untitled() : title,
+                    description,
+                    startMillis,
+                    endMillis,
+                    allDay
+            );
+            if (eventId >= 0L) {
+                importedCount++;
+            }
+        }
+        return importedCount;
+    }
+
     private String readAllText(InputStream inputStream) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[4096];
@@ -1383,6 +2537,11 @@ public class MainActivity extends Activity {
     private String buildTodoBackupFileName() {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault());
         return "todo_backup_" + format.format(new Date()) + ".json";
+    }
+
+    private String buildCalendarBackupFileName() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault());
+        return "calendar_backup_" + format.format(new Date()) + ".json";
     }
 
     private CalendarRepository.CalendarEvent getSelectedEvent() {
@@ -1414,7 +2573,12 @@ public class MainActivity extends Activity {
 
     private long pickInitialCalendarId() {
         for (CalendarRepository.CalendarInfo info : writableCalendars) {
-            if (info.isGoogleCalendar()) {
+            if (info.isGoogleCalendar() && info.canWrite()) {
+                return info.id;
+            }
+        }
+        for (CalendarRepository.CalendarInfo info : writableCalendars) {
+            if (info.canWrite()) {
                 return info.id;
             }
         }
@@ -1429,6 +2593,32 @@ public class MainActivity extends Activity {
     private void persistCalendarId(long calendarId) {
         SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         preferences.edit().putLong(KEY_SELECTED_CALENDAR_ID, calendarId).apply();
+    }
+
+    private Set<Long> loadPersistedExtraCalendarIds() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        Set<String> stored = prefs.getStringSet(KEY_EXTRA_CALENDAR_IDS, new HashSet<>());
+        Set<Long> result = new LinkedHashSet<>();
+        for (String s : stored) {
+            try { result.add(Long.parseLong(s)); } catch (NumberFormatException ignored) {}
+        }
+        return result;
+    }
+
+    private void persistExtraCalendarIds() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        Set<String> toStore = new LinkedHashSet<>();
+        for (long id : extraCalendarIds) toStore.add(String.valueOf(id));
+        prefs.edit().putStringSet(KEY_EXTRA_CALENDAR_IDS, toStore).apply();
+    }
+
+    private List<Long> getDisplayCalendarIds() {
+        List<Long> ids = new ArrayList<>();
+        if (selectedCalendarId >= 0L) ids.add(selectedCalendarId);
+        for (long id : extraCalendarIds) {
+            if (id != selectedCalendarId) ids.add(id);
+        }
+        return ids;
     }
 
     private void installSystemAwareRootPadding(View root) {
@@ -1515,6 +2705,13 @@ public class MainActivity extends Activity {
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    private long buildLocalDateMillis(int year, int month, int day) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.clear();
+        calendar.set(year, month - 1, day, 0, 0, 0);
         return calendar.getTimeInMillis();
     }
 

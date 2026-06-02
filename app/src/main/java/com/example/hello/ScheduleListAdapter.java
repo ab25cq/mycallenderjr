@@ -175,10 +175,21 @@ public class ScheduleListAdapter extends BaseAdapter {
         rowViews.detailView.setVisibility(TextUtils.isEmpty(item.detail) ? View.GONE : View.VISIBLE);
 
         if (item.kind == ITEM_KIND_EVENT) {
+            rowViews.titleView.setSingleLine(true);
+            rowViews.titleView.setMaxLines(1);
+            rowViews.titleView.setEllipsize(TruncateAt.END);
             itemLayout.setBackgroundColor(item.event != null && item.event.id == selectedEventId
                     ? Color.parseColor("#DCEBFF")
                     : Color.WHITE);
+        } else if (item.kind == ITEM_KIND_TODO) {
+            rowViews.titleView.setSingleLine(false);
+            rowViews.titleView.setMaxLines(Integer.MAX_VALUE);
+            rowViews.titleView.setEllipsize(null);
+            itemLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
         } else {
+            rowViews.titleView.setSingleLine(true);
+            rowViews.titleView.setMaxLines(1);
+            rowViews.titleView.setEllipsize(TruncateAt.END);
             itemLayout.setBackgroundColor(Color.parseColor("#F8FAFC"));
         }
 

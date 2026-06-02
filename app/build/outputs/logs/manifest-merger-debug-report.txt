@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-22:12
-INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-22:12
-INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-22:12
-INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-22:12
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-35:12
+INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-35:12
+INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-35:12
+INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:2:1-35:12
 	package
 		INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml
 	android:versionName
@@ -21,32 +21,58 @@ ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:5:5-73
 	android:name
 		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:5:22-70
 application
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:6:5-20:19
-INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:6:5-20:19
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:6:5-33:19
+INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:6:5-33:19
 	android:extractNativeLibs
 		INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml
 	android:label
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:8:9-41
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:9:9-41
 	android:icon
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:7:9-54
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:8:9-54
+	android:allowBackup
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:7:9-36
 activity#com.example.myhelloworld.MainActivity
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:10:9-18:20
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:11:9-19:20
 	android:windowSoftInputMode
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:13:13-55
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:14:13-55
 	android:exported
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:12:13-36
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:13:13-36
 	android:name
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:11:13-41
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:12:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:14:13-17:29
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:15:13-18:29
 action#android.intent.action.MAIN
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:15:17-69
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:16:17-69
 	android:name
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:15:25-66
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:16:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:16:17-77
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:17:17-77
 	android:name
-		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:16:27-74
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:17:27-74
+activity#com.example.myhelloworld.ShiftActivity
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:20:9-23:58
+	android:windowSoftInputMode
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:23:13-55
+	android:exported
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:22:13-37
+	android:name
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:21:13-42
+activity#com.example.myhelloworld.TodoActivity
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:24:9-27:58
+	android:windowSoftInputMode
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:27:13-55
+	android:exported
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:26:13-37
+	android:name
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:25:13-41
+activity#com.example.myhelloworld.DiaryActivity
+ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:28:9-31:58
+	android:windowSoftInputMode
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:31:13-55
+	android:exported
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:30:13-37
+	android:name
+		ADDED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml:29:13-42
 uses-sdk
 INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/ab25cq/mycallenderjr/app/src/main/AndroidManifest.xml

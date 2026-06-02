@@ -24,7 +24,7 @@ public final class CalendarRepository {
     private CalendarRepository() {
     }
 
-    public static List<CalendarInfo> getWritableCalendars(Context context) {
+    public static List<CalendarInfo> getAllCalendars(Context context) {
         List<CalendarInfo> calendars = new ArrayList<>();
         ContentResolver resolver = context.getContentResolver();
 
@@ -32,15 +32,16 @@ public final class CalendarRepository {
                 CalendarContract.Calendars._ID,
                 CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
                 CalendarContract.Calendars.ACCOUNT_NAME,
+                CalendarContract.Calendars.OWNER_ACCOUNT,
                 CalendarContract.Calendars.ACCOUNT_TYPE,
+                CalendarContract.Calendars._SYNC_ID,
                 CalendarContract.Calendars.VISIBLE,
                 CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL
         };
 
-        String selection = CalendarContract.Calendars.VISIBLE + " = 1 AND "
-                + CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + " >= ?";
+        String selection = CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + " >= ?";
         String[] selectionArgs = {
-                String.valueOf(CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR)
+                String.valueOf(CalendarContract.Calendars.CAL_ACCESS_READ)
         };
         String orderBy = CalendarContract.Calendars.IS_PRIMARY + " DESC, "
                 + CalendarContract.Calendars.ACCOUNT_NAME + " ASC, "
@@ -62,14 +63,83 @@ public final class CalendarRepository {
             int idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._ID);
             int displayNameIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME);
             int accountNameIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_NAME);
+            int ownerAccountIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.OWNER_ACCOUNT);
             int accountTypeIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_TYPE);
+            int syncIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._SYNC_ID);
+            int accessLevelIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL);
 
             while (cursor.moveToNext()) {
                 calendars.add(new CalendarInfo(
                         cursor.getLong(idIndex),
                         cursor.getString(displayNameIndex),
                         cursor.getString(accountNameIndex),
-                        cursor.getString(accountTypeIndex)
+                        cursor.getString(ownerAccountIndex),
+                        cursor.getString(accountTypeIndex),
+                        cursor.getString(syncIdIndex),
+                        cursor.getInt(accessLevelIndex)
+                ));
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return calendars;
+    }
+
+    public static List<CalendarInfo> getWritableCalendars(Context context) {
+        List<CalendarInfo> calendars = new ArrayList<>();
+        ContentResolver resolver = context.getContentResolver();
+
+        String[] projection = {
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME,
+                CalendarContract.Calendars.OWNER_ACCOUNT,
+                CalendarContract.Calendars.ACCOUNT_TYPE,
+                CalendarContract.Calendars._SYNC_ID,
+                CalendarContract.Calendars.VISIBLE,
+                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL
+        };
+
+        String selection = CalendarContract.Calendars.VISIBLE + " = 1 AND "
+                + CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + " >= ?";
+        String[] selectionArgs = {
+                String.valueOf(CalendarContract.Calendars.CAL_ACCESS_READ)
+        };
+        String orderBy = CalendarContract.Calendars.IS_PRIMARY + " DESC, "
+                + CalendarContract.Calendars.ACCOUNT_NAME + " ASC, "
+                + CalendarContract.Calendars.CALENDAR_DISPLAY_NAME + " ASC";
+
+        Cursor cursor = resolver.query(
+                CalendarContract.Calendars.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                orderBy
+        );
+
+        if (cursor == null) {
+            return calendars;
+        }
+
+        try {
+            int idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._ID);
+            int displayNameIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME);
+            int accountNameIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_NAME);
+            int ownerAccountIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.OWNER_ACCOUNT);
+            int accountTypeIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.ACCOUNT_TYPE);
+            int syncIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._SYNC_ID);
+            int accessLevelIndex = cursor.getColumnIndexOrThrow(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL);
+
+            while (cursor.moveToNext()) {
+                calendars.add(new CalendarInfo(
+                        cursor.getLong(idIndex),
+                        cursor.getString(displayNameIndex),
+                        cursor.getString(accountNameIndex),
+                        cursor.getString(ownerAccountIndex),
+                        cursor.getString(accountTypeIndex),
+                        cursor.getString(syncIdIndex),
+                        cursor.getInt(accessLevelIndex)
                 ));
             }
         } finally {
@@ -165,6 +235,84 @@ public final class CalendarRepository {
                 events.add(new CalendarEvent(
                         cursor.getLong(idIndex),
                         cursor.getLong(eventIdIndex),
+                        cursor.getLong(calendarIdIndex),
+                        TextUtils.isEmpty(title) ? AppText.untitled() : title,
+                        description == null ? "" : description,
+                        startMillis,
+                        endMillis,
+                        allDay
+                ));
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return events;
+    }
+
+    public static List<CalendarEvent> getEventsForCalendar(Context context, long calendarId) {
+        List<CalendarEvent> events = new ArrayList<>();
+        ContentResolver resolver = context.getContentResolver();
+
+        String[] projection = {
+                CalendarContract.Events._ID,
+                CalendarContract.Events.CALENDAR_ID,
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DESCRIPTION,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.DTEND,
+                CalendarContract.Events.ALL_DAY
+        };
+        String selection = CalendarContract.Events.CALENDAR_ID + " = ? AND "
+                + CalendarContract.Events.DELETED + " != 1";
+        String[] selectionArgs = {
+                String.valueOf(calendarId)
+        };
+        String sortOrder = CalendarContract.Events.DTSTART + " ASC";
+
+        Cursor cursor = resolver.query(
+                CalendarContract.Events.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+        );
+
+        if (cursor == null) {
+            return events;
+        }
+
+        try {
+            int eventIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events._ID);
+            int calendarIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID);
+            int titleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE);
+            int descriptionIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION);
+            int startIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART);
+            int endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTEND);
+            int allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY);
+
+            while (cursor.moveToNext()) {
+                if (cursor.isNull(startIndex)) {
+                    continue;
+                }
+                long startMillis = cursor.getLong(startIndex);
+                long endMillis = cursor.isNull(endIndex) ? startMillis : cursor.getLong(endIndex);
+                boolean allDay = cursor.getInt(allDayIndex) == 1;
+                if (endMillis == startMillis) {
+                    endMillis = startMillis + (allDay ? DAY_IN_MILLIS : 60L * 60L * 1000L);
+                }
+                if (allDay) {
+                    startMillis = allDayMillisToLocalDayStart(startMillis);
+                    endMillis = allDayMillisToLocalDayStart(endMillis);
+                }
+
+                String title = cursor.getString(titleIndex);
+                String description = cursor.getString(descriptionIndex);
+                long eventId = cursor.getLong(eventIdIndex);
+
+                events.add(new CalendarEvent(
+                        eventId,
+                        eventId,
                         cursor.getLong(calendarIdIndex),
                         TextUtils.isEmpty(title) ? AppText.untitled() : title,
                         description == null ? "" : description,
@@ -361,17 +509,27 @@ public final class CalendarRepository {
         public final long id;
         public final String displayName;
         public final String accountName;
+        public final String ownerAccount;
         public final String accountType;
+        public final String syncId;
+        public final int accessLevel;
 
-        CalendarInfo(long id, String displayName, String accountName, String accountType) {
+        CalendarInfo(long id, String displayName, String accountName, String ownerAccount, String accountType, String syncId, int accessLevel) {
             this.id = id;
             this.displayName = displayName == null ? AppText.unnamedCalendar() : displayName;
             this.accountName = accountName == null ? AppText.noAccount() : accountName;
+            this.ownerAccount = ownerAccount == null ? "" : ownerAccount;
             this.accountType = accountType == null ? "" : accountType;
+            this.syncId = syncId == null ? "" : syncId;
+            this.accessLevel = accessLevel;
         }
 
         public boolean isGoogleCalendar() {
             return "com.google".equals(accountType);
+        }
+
+        public boolean canWrite() {
+            return accessLevel >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR;
         }
     }
 

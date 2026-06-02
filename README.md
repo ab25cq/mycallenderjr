@@ -55,12 +55,6 @@ or
 
 use codex for build instead.
 
-# join google play tester
+# App Store
 
-join the mycallender group
-https://groups.google.com/g/mycallenderjr
-
-become the tester and intall app
-https://play.google.com/apps/testing/com.mycallenderjr
-
-
+https://play.google.com/store/apps/details?id=com.mycallenderjr&hl=en-US&ah=pbOOvuiB2uuYUdaDNM_KvZ4mbPk

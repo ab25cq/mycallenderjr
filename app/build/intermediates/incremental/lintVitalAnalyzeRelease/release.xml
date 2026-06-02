@@ -6,7 +6,7 @@
     mergedManifest="build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
     proguardFiles="build/intermediates/default_proguard_files/global/proguard-android.txt-8.6.0"
     partialResultsDir="build/intermediates/lint_vital_partial_results/release/lintVitalAnalyzeRelease/out"
-    desugaredMethodsFiles="/home/ab25cq/.gradle/caches/transforms-4/fdcf96d03abf5be90018fd5fb328802a/transformed/D8BackportedDesugaredMethods.txt">
+    desugaredMethodsFiles="/tmp/gradle-cache/caches/8.9/transforms/adeeca07fc683fa0e331e94fb44c244a/transformed/D8BackportedDesugaredMethods.txt">
   <buildFeatures
       namespacing="REQUIRED"/>
   <sourceProviders>
@@ -26,6 +26,6 @@
       applicationId="com.mycallenderjr"
       generatedSourceFolders="build/generated/ap_generated_sources/release/out"
       generatedResourceFolders="build/generated/res/resValues/release"
-      desugaredMethodsFiles="/home/ab25cq/.gradle/caches/transforms-4/fdcf96d03abf5be90018fd5fb328802a/transformed/D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="/tmp/gradle-cache/caches/8.9/transforms/adeeca07fc683fa0e331e94fb44c244a/transformed/D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>
