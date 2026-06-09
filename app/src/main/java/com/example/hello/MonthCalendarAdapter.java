@@ -21,20 +21,26 @@ public class MonthCalendarAdapter extends BaseAdapter {
     private static final int CELL_VERTICAL_PADDING_DP = 3;
     private static final int DAY_TEXT_SIZE_DP = 12;
     private static final int SUMMARY_TEXT_SIZE_DP = 10;
-    private static final String COLOR_SELECTED = "#CC0F172A";
-    private static final String COLOR_CELL = "#CC000000";
-    private static final String COLOR_SATURDAY_CELL = "#D98B2D66";
-    private static final String COLOR_SUNDAY_CELL = "#D9B91F4C";
-    private static final String COLOR_HOLIDAY_CELL = "#D9B91F4C";
+    private static final String COLOR_WALLPAPER_SELECTED = "#CC0F172A";
+    private static final String COLOR_WALLPAPER_CELL = "#CC000000";
+    private static final String COLOR_WALLPAPER_SATURDAY_CELL = "#D98B2D66";
+    private static final String COLOR_WALLPAPER_SUNDAY_CELL = "#D9B91F4C";
+    private static final String COLOR_NO_WALLPAPER_SELECTED = "#FFF0C9C2";
+    private static final String COLOR_NO_WALLPAPER_CELL = "#FFFFFFFF";
+    private static final String COLOR_NO_WALLPAPER_SATURDAY_CELL = "#FFFFE9EE";
+    private static final String COLOR_NO_WALLPAPER_SUNDAY_CELL = "#FFFFD6DF";
     private static final String COLOR_TODAY_BORDER = "#EF4444";
-    private static final int COLOR_CURRENT_MONTH_TEXT = 0xFFFFFFFF;
-    private static final int COLOR_OUTSIDE_MONTH_TEXT = 0xFFCBD5E1;
+    private static final int COLOR_WALLPAPER_CURRENT_MONTH_TEXT = 0xFFFFFFFF;
+    private static final int COLOR_WALLPAPER_OUTSIDE_MONTH_TEXT = 0xFFCBD5E1;
+    private static final int COLOR_NO_WALLPAPER_CURRENT_MONTH_TEXT = 0xFF4A3035;
+    private static final int COLOR_NO_WALLPAPER_OUTSIDE_MONTH_TEXT = 0xFFA68C91;
 
     private final Context context;
     private final List<MonthDayCell> cells;
     private int cellHeightDp = DEFAULT_CELL_HEIGHT_DP;
     private int maxSummaryLines = 3;
     private boolean wrapSummaryText = true;
+    private boolean wallpaperEnabled;
 
     public MonthCalendarAdapter(Context context, List<MonthDayCell> cells) {
         this.context = context;
@@ -48,6 +54,11 @@ public class MonthCalendarAdapter extends BaseAdapter {
 
     public void setWrapSummaryText(boolean wrapSummaryText) {
         this.wrapSummaryText = wrapSummaryText;
+    }
+
+    public void setWallpaperEnabled(boolean wallpaperEnabled) {
+        this.wallpaperEnabled = wallpaperEnabled;
+        notifyDataSetChanged();
     }
 
     @Override
@@ -124,7 +135,16 @@ public class MonthCalendarAdapter extends BaseAdapter {
 
         itemLayout.setBackground(buildCellBackground(cell));
 
-        int textColor = cell.isCurrentMonth ? COLOR_CURRENT_MONTH_TEXT : COLOR_OUTSIDE_MONTH_TEXT;
+        int textColor;
+        if (wallpaperEnabled) {
+            textColor = cell.isCurrentMonth
+                    ? COLOR_WALLPAPER_CURRENT_MONTH_TEXT
+                    : COLOR_WALLPAPER_OUTSIDE_MONTH_TEXT;
+        } else {
+            textColor = cell.isCurrentMonth
+                    ? COLOR_NO_WALLPAPER_CURRENT_MONTH_TEXT
+                    : COLOR_NO_WALLPAPER_OUTSIDE_MONTH_TEXT;
+        }
         cellViews.dayView.setTextColor(textColor);
         cellViews.summaryView.setTextColor(textColor);
 
@@ -150,15 +170,19 @@ public class MonthCalendarAdapter extends BaseAdapter {
 
     private String getCellBackgroundColor(MonthDayCell cell) {
         if (cell.isSelected) {
-            return COLOR_SELECTED;
+            return wallpaperEnabled ? COLOR_WALLPAPER_SELECTED : COLOR_NO_WALLPAPER_SELECTED;
         }
         if (cell.isHoliday || cell.isSunday) {
-            return COLOR_HOLIDAY_CELL;
+            return wallpaperEnabled
+                    ? COLOR_WALLPAPER_SUNDAY_CELL
+                    : COLOR_NO_WALLPAPER_SUNDAY_CELL;
         }
         if (cell.isSaturday) {
-            return COLOR_SATURDAY_CELL;
+            return wallpaperEnabled
+                    ? COLOR_WALLPAPER_SATURDAY_CELL
+                    : COLOR_NO_WALLPAPER_SATURDAY_CELL;
         }
-        return COLOR_CELL;
+        return wallpaperEnabled ? COLOR_WALLPAPER_CELL : COLOR_NO_WALLPAPER_CELL;
     }
 
     private static final class CellViews {

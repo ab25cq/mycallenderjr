@@ -12,6 +12,7 @@ import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -247,7 +248,129 @@ public final class CalendarRepository {
             cursor.close();
         }
 
+        mergeDirectEventsForRange(
+                resolver,
+                calendarId,
+                rangeStartMillis,
+                rangeEndMillis,
+                events
+        );
+        events.sort(Comparator
+                .comparing((CalendarEvent event) -> !event.allDay)
+                .thenComparingLong(event -> event.startMillis));
         return events;
+    }
+
+    private static void mergeDirectEventsForRange(
+            ContentResolver resolver,
+            long calendarId,
+            long rangeStartMillis,
+            long rangeEndMillis,
+            List<CalendarEvent> destination
+    ) {
+        String[] projection = {
+                CalendarContract.Events._ID,
+                CalendarContract.Events.CALENDAR_ID,
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DESCRIPTION,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.DTEND,
+                CalendarContract.Events.ALL_DAY,
+                CalendarContract.Events.RRULE
+        };
+        String selection = CalendarContract.Events.CALENDAR_ID + " = ? AND ("
+                + CalendarContract.Events.DELETED + " IS NULL OR "
+                + CalendarContract.Events.DELETED + " != 1) AND "
+                + CalendarContract.Events.DTSTART + " < ? AND ("
+                + CalendarContract.Events.DTEND + " IS NULL OR "
+                + CalendarContract.Events.DTEND + " > ?)";
+        String[] selectionArgs = {
+                String.valueOf(calendarId),
+                String.valueOf(rangeEndMillis),
+                String.valueOf(rangeStartMillis)
+        };
+
+        Cursor cursor = null;
+        try {
+            cursor = resolver.query(
+                    CalendarContract.Events.CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    CalendarContract.Events.ALL_DAY + " DESC, "
+                            + CalendarContract.Events.DTSTART + " ASC"
+            );
+            if (cursor == null) {
+                return;
+            }
+
+            int eventIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events._ID);
+            int calendarIdIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID);
+            int titleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE);
+            int descriptionIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION);
+            int startIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART);
+            int endIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTEND);
+            int allDayIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY);
+            int rruleIndex = cursor.getColumnIndexOrThrow(CalendarContract.Events.RRULE);
+
+            while (cursor.moveToNext()) {
+                // Recurring masters must be expanded by Instances to obtain each occurrence.
+                if (!cursor.isNull(rruleIndex) && !TextUtils.isEmpty(cursor.getString(rruleIndex))) {
+                    continue;
+                }
+                if (cursor.isNull(startIndex)) {
+                    continue;
+                }
+
+                long eventId = cursor.getLong(eventIdIndex);
+                long startMillis = cursor.getLong(startIndex);
+                long endMillis = cursor.isNull(endIndex) ? startMillis : cursor.getLong(endIndex);
+                boolean allDay = cursor.getInt(allDayIndex) == 1;
+                if (endMillis <= startMillis) {
+                    endMillis = startMillis + (allDay ? DAY_IN_MILLIS : 60L * 60L * 1000L);
+                }
+                if (allDay) {
+                    startMillis = allDayMillisToLocalDayStart(startMillis);
+                    endMillis = allDayMillisToLocalDayStart(endMillis);
+                }
+                if (startMillis >= rangeEndMillis || endMillis <= rangeStartMillis
+                        || containsEventOccurrence(destination, eventId, startMillis)) {
+                    continue;
+                }
+
+                String title = cursor.getString(titleIndex);
+                String description = cursor.getString(descriptionIndex);
+                destination.add(new CalendarEvent(
+                        eventId,
+                        eventId,
+                        cursor.getLong(calendarIdIndex),
+                        TextUtils.isEmpty(title) ? AppText.untitled() : title,
+                        description == null ? "" : description,
+                        startMillis,
+                        endMillis,
+                        allDay
+                ));
+            }
+        } catch (RuntimeException e) {
+            Log.w(TAG, "direct event fallback query failed for calendarId=" + calendarId, e);
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
+    private static boolean containsEventOccurrence(
+            List<CalendarEvent> events,
+            long eventId,
+            long startMillis
+    ) {
+        for (CalendarEvent event : events) {
+            if (event.eventId == eventId && event.startMillis == startMillis) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<CalendarEvent> getEventsForCalendar(Context context, long calendarId) {
@@ -542,6 +665,8 @@ public final class CalendarRepository {
         public final long startMillis;
         public final long endMillis;
         public final boolean allDay;
+        public final boolean fromGoogleApi;
+        public final String googleEventId;
 
         CalendarEvent(
                 long id,
@@ -553,6 +678,21 @@ public final class CalendarRepository {
                 long endMillis,
                 boolean allDay
         ) {
+            this(id, eventId, calendarId, title, description, startMillis, endMillis, allDay, false, "");
+        }
+
+        CalendarEvent(
+                long id,
+                long eventId,
+                long calendarId,
+                String title,
+                String description,
+                long startMillis,
+                long endMillis,
+                boolean allDay,
+                boolean fromGoogleApi,
+                String googleEventId
+        ) {
             this.id = id;
             this.eventId = eventId;
             this.calendarId = calendarId;
@@ -561,6 +701,8 @@ public final class CalendarRepository {
             this.startMillis = startMillis;
             this.endMillis = endMillis;
             this.allDay = allDay;
+            this.fromGoogleApi = fromGoogleApi;
+            this.googleEventId = googleEventId == null ? "" : googleEventId;
         }
     }
 }
