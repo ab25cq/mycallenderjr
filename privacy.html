@@ -1,220 +1,119 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MyCallenderJr プライバシーポリシー</title>
-  <style>
-    :root {
-      --bg: #f7f4ee;
-      --card: #fffdf8;
-      --text: #1f2933;
-      --muted: #5b6875;
-      --line: #d7d1c7;
-      --accent: #1e6f5c;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
-      line-height: 1.8;
-      color: var(--text);
-      background:
-        radial-gradient(circle at top right, rgba(30, 111, 92, 0.12), transparent 28%),
-        linear-gradient(180deg, #f4efe6 0%, var(--bg) 100%);
-    }
-
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 40px 20px 64px;
-    }
-
-    .hero,
-    section {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(31, 41, 51, 0.05);
-    }
-
-    .hero {
-      padding: 28px 24px;
-      margin-bottom: 20px;
-    }
-
-    section {
-      padding: 24px;
-      margin-bottom: 16px;
-    }
-
-    h1,
-    h2 {
-      margin: 0 0 12px;
-      line-height: 1.4;
-    }
-
-    h1 {
-      font-size: 2rem;
-    }
-
-    h2 {
-      font-size: 1.2rem;
-      color: var(--accent);
-    }
-
-    p,
-    li {
-      margin: 0 0 10px;
-    }
-
-    ul {
-      padding-left: 1.2rem;
-      margin: 0;
-    }
-
-    .meta {
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-
-    .note {
-      color: var(--muted);
-    }
-
-    @media (max-width: 640px) {
-      main {
-        padding: 20px 14px 40px;
-      }
-
-      .hero,
-      section {
-        padding: 18px 16px;
-        border-radius: 14px;
-      }
-
-      h1 {
-        font-size: 1.6rem;
-      }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>パーソナルライフログ２ / Personal Lifelog 2 — プライバシーポリシー / Privacy Policy</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f7fa;--panel:#fff;--text:#1b2939;--muted:#4c5c70;--line:#cbd6e2;--link:#1556a0}
+@media(prefers-color-scheme:dark){:root{--bg:#101923;--panel:#182432;--text:#eef3fa;--muted:#c3cddb;--line:#405269;--link:#91c5ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.8 system-ui,sans-serif}main{max-width:940px;margin:auto;padding:26px 18px 60px}header,section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}h1{font-size:25px;line-height:1.5;margin-top:0}h2{font-size:21px;margin-top:26px}h3{font-size:17px}p,ul{margin:12px 0}li{margin:7px 0}a{color:var(--link);overflow-wrap:anywhere}code{overflow-wrap:anywhere}nav{margin:12px 0}.meta{color:var(--muted)}.notice{border-left:4px solid var(--link);padding:10px 14px;background:var(--bg)}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.table-wrap{overflow-x:auto}th{min-width:130px}section{scroll-margin-top:12px}
+</style>
 </head>
-<body>
-  <main>
-    <div class="hero">
-      <h1>MyCallenderJr プライバシーポリシー</h1>
-      <p class="meta">最終更新日: 2026年4月24日</p>
-      <p>
-        MyCallenderJr（以下「本アプリ」といいます）は、端末のカレンダー情報を表示・編集し、
-        ユーザーが作成した TODO を端末内で管理するためのアプリです。
-        本ポリシーは、本アプリにおける情報の取得、利用、保存および第三者提供の取扱いを説明するものです。
-      </p>
-    </div>
-
-    <section>
-      <h2>1. 取得する情報</h2>
-      <ul>
-        <li>端末のカレンダー情報: カレンダーID、カレンダー名、アカウント名、アカウント種別、予定のタイトル、説明、開始日時、終了日時、終日設定</li>
-        <li>本アプリ内の設定情報: 選択したカレンダーID、表示順などの設定情報</li>
-        <li>本アプリ内の TODO 情報: ユーザーが入力した TODO のタイトルおよび内部識別子</li>
-        <li>ユーザーが任意に選択したバックアップファイル: TODO のエクスポート先またはインポート元としてユーザーが明示的に指定した JSON ファイル</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>2. 利用目的</h2>
-      <ul>
-        <li>端末カレンダーの予定を表示し、編集・追加・削除するため</li>
-        <li>ユーザーが選択した同期先カレンダーを記憶するため</li>
-        <li>TODO を端末内で保存、表示、並び替え、バックアップおよび復元するため</li>
-        <li>アプリの基本機能を提供し、操作性を維持するため</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>3. 権限の利用について</h2>
-      <p>
-        本アプリは、以下の Android 権限を利用します。
-      </p>
-      <ul>
-        <li><strong>READ_CALENDAR</strong>: 端末のカレンダー情報および予定を表示するため</li>
-        <li><strong>WRITE_CALENDAR</strong>: 端末のカレンダーに予定を追加、更新、削除するため</li>
-      </ul>
-      <p class="note">
-        これらの権限は、本アプリのカレンダー機能の提供に必要な範囲でのみ使用されます。
-      </p>
-    </section>
-
-    <section>
-      <h2>4. 情報の保存場所</h2>
-      <p>
-        本アプリが扱う設定情報および TODO 情報は、主にユーザーの端末内に保存されます。
-        また、カレンダーの予定情報は Android のカレンダープロバイダを通じて端末上のカレンダーに保存されます。
-      </p>
-      <p>
-        ユーザーが TODO のエクスポート機能を利用した場合、指定した保存先ファイルに TODO 情報が書き出されます。
-        インポート機能を利用した場合は、ユーザーが選択したファイルの内容を読み込みます。
-      </p>
-    </section>
-
-    <section>
-      <h2>5. 外部送信および第三者提供</h2>
-      <p>
-        本アプリ自体は、取得した情報を開発者のサーバーへ送信しません。
-        また、広告配信、アクセス解析、クラッシュ解析等のための外部 SDK は組み込んでいません。
-      </p>
-      <p>
-        ただし、ユーザーが本アプリで操作するカレンダーが Google カレンダー等の外部アカウントと端末側で同期設定されている場合、
-        予定情報は当該カレンダー提供事業者の仕組みにより同期されることがあります。
-        これらの同期は、各サービス提供事業者のプライバシーポリシーおよびユーザー自身の端末設定に従って行われます。
-      </p>
-    </section>
-
-    <section>
-      <h2>6. 情報の削除方法</h2>
-      <ul>
-        <li>予定情報は、本アプリまたは端末のカレンダーアプリから削除できます</li>
-        <li>TODO 情報は、本アプリ内の操作により削除できます</li>
-        <li>本アプリをアンインストールした場合、本アプリ内に保存された設定情報および TODO 情報は端末から削除されます</li>
-        <li>ユーザーが書き出したバックアップファイルは、保存先で別途削除してください</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>7. 安全管理</h2>
-      <p>
-        本アプリは、必要最小限の権限のみを利用し、端末内で情報を取り扱う設計を採用しています。
-        ただし、端末の紛失、第三者による端末利用、同期先サービスの管理状態などに起因するリスクについては、
-        ユーザー自身でも端末のロック設定、アカウント管理、バックアップファイルの管理を行ってください。
-      </p>
-    </section>
-
-    <section>
-      <h2>8. 子どもの個人情報について</h2>
-      <p>
-        本アプリは、特定の年齢層を対象として個人情報を意図的に収集するものではありません。
-        保護者の方が、お子様による利用に関して懸念を持たれた場合は、端末の権限設定および同期設定をご確認ください。
-      </p>
-    </section>
-
-    <section>
-      <h2>9. 改定</h2>
-      <p>
-        本ポリシーは、法令の改正や本アプリの機能変更に応じて改定されることがあります。
-        重要な変更がある場合は、最新のポリシーを本ページに掲載します。
-      </p>
-    </section>
-
-    <section>
-      <h2>10. お問い合わせ</h2>
-      <p>
-        本アプリに関するお問い合わせは、Google Play ストアのデベロッパー連絡先をご利用ください。
-      </p>
-    </section>
-  </main>
-</body>
-</html>
+<body><main>
+<header>
+<h1>パーソナルライフログ２<br>プライバシーポリシー</h1>
+<p class="meta">Personal Lifelog 2 — Privacy Policy<br>最終更新日 / Last updated: 2026-10-29</p>
+<p>対象アプリ：<strong>パーソナルライフログ２（Personal Lifelog 2）</strong><br>Android パッケージ名：<code>com.ab25cq.lifelog</code><br>開発者：湊大典（ab25cq）<br>プライバシーに関する連絡先：<a href="mailto:ab25cq@gmail.com">ab25cq@gmail.com</a></p>
+<nav aria-label="Language"><a href="#ja">日本語</a> · <a href="#en" lang="en">English</a></nav>
+</header>
+<section id="ja" lang="ja">
+<h2>1. 基本方針・対象範囲</h2>
+<p>本アプリは、日々の生活、健康、予定、家族、仕事、趣味などをユーザー自身が記録・閲覧するためのアプリです。専用アカウントの作成や開発者サーバーへのログインはありません。入力した記録や選択した写真・音声・動画・読み込みデータは、原則として端末内で処理・保存します。</p>
+<p class="notice"><strong>「端末内で保存する」ことは「通信が一切ない」ことを意味しません。</strong>ニュース・天気の取得、GPX地図の表示、Google Playの購入確認、ユーザーが選んだ共有先・保存先の利用には外部通信や他のアプリへのデータの受け渡しがあります。以下にその内容を説明します。</p>
+<p>開発者は、記録内容を収集する独自のサーバーを運営しておらず、アプリから生活記録・健康記録・写真・録音などを開発者のサーバーへ自動送信する仕組みはありません。広告配信SDK、アクセス解析SDK、クラッシュレポート送信SDKは組み込んでいません。開発者は記録データの販売や広告目的のプロファイリングを行いません。</p>
+<h2>2. アクセス・保存する情報と利用目的</h2>
+<p>次の情報は、ユーザーが該当する機能を使用した範囲で扱います。すべての項目を入力する必要はありません。</p>
+<ul>
+<li><strong>生活・仕事・趣味の記録：</strong>メモ、日記・つぶやき、質問と回答、イベント、予定、TODO、家事分担、仕事日誌、趣味の投稿、ニュース・天気・番組へのコメントなど。記録、編集、検索、一覧表示、PDF作成・印刷のために使用します。メモ編集画面では、他のアプリへ切り替えたときなどに編集内容を端末内へ自動保存します。</li>
+<li><strong>本人・家族・同僚などの情報：</strong>氏名、生年月日、年齢、連絡先、住所・本籍、職歴・学歴、性格、宗教、関係、プロフィール写真など、ユーザーが入力した情報。個人別の基本情報、経過、タイムラインを管理するために使用します。他の方については、必要な同意や記録する権限を得て入力してください。本アプリは端末の電話帳・SMS・通話履歴を読み取りません。</li>
+<li><strong>健康・身体・精神の記録：</strong>睡眠時間・中途覚醒・メモ、体重、血圧、脈拍、体温、排泄、皮膚状態、怪我・処置、服薬、症状、通院、運動、水分、嗜好品、ケアプランなど。ユーザー自身の振り返り、日付ごとの集計・一覧、アラームや印刷のために使用します。医療機器ではなく、診断、治療、治癒、疾病の予防を行うものではありません。健康上の判断は医療専門家に相談してください。</li>
+<li><strong>家計・金融・持ち物の情報：</strong>金額、購入履歴、店名、銀行名・支店・口座番号、引き落とし、保険情報、所有物など。ユーザーが入力した内容の保存、合計計算、整理・印刷に使用します。銀行への接続、口座照会、自動決済は行いません。</li>
+<li><strong>画像・ファイル・クリップボード：</strong>ユーザーが選択した画像・文書・バックアップ・動画や、編集画面で貼り付けた文章・画像を扱います。画像の表示・編集、添付、PDF作成、保存・読み込みのために使用します。写真・ファイルはシステムの選択画面や選択した提供アプリを通じて取得し、端末内のすべての写真を一括収集する権限は要求しません。</li>
+<li><strong>マイクと録音：</strong>ユーザーが録音を開始したときにマイクを使用し、音声、録音日時、長さ、波形、入力したメモを保存します。録音中はフォアグラウンドサービスと通知を使用し、他の画面・アプリに切り替えても録音を継続できます。録音は録音画面・通知の停止操作などで終了できます。再生・波形表示・任意の位置からの再生にも使用します。周囲の方のプライバシーや録音に関する法令に配慮してください。</li>
+<li><strong>端末のカレンダー：</strong>許可された場合、Androidのカレンダープロバイダーから予定を読み取り、ユーザーの操作に応じてシフトや定期的な予定などを書き込みます。カレンダーの選択・設定や同期要求も利用します。Google等の同期対象カレンダーに書き込んだ内容は、そのアカウント・カレンダーサービスの設定に従って同期されることがあります。</li>
+<li><strong>設定・購入済み状態：</strong>表示設定、選択した地域やフォルダ、各機能の設定、Google Playの購入済み状態などを端末内に保存し、次回の表示や購入確認に使用します。</li>
+</ul>
+<h3>ヘルスコネクトの出力ファイルからの歩数読み込み</h3>
+<p>ユーザーが明示的に選択したヘルスコネクトの出力ZIPを読み込み、歩数を日付ごとに集計し、月別の表に保存します。複数の記録元がある場合は選択した記録元を集計します。これは<strong>ファイルの読み込み機能</strong>です。Health Connect APIへの接続、身体活動センサーによる常時計測、<code>ACTIVITY_RECOGNITION</code>やHealth Connectの健康データアクセス権限の要求は行いません。</p>
+<p>ZIP内のデータベースは、集計のためアプリの非公開キャッシュへ一時展開します。出力データベースには歩数以外の健康情報が含まれる可能性がありますが、他の健康記録を本アプリの記録として取り込む目的では使用しません。一時ファイルは処理終了・キャンセルなどで削除する処理を設けています。異常終了時などに残ったキャッシュは、Androidのアプリ設定から削除できます。元のZIPは変更しません。保存した日別歩数は全体保存に含まれます。健康データを広告、信用判断、保険の審査、販売のために使用しません。</p>
+<h3>GPXファイルからの移動ログ</h3>
+<p>ユーザーが選択したGPXから緯度・経度・時刻などを端末内で読み取り、移動経路と時系列グラフを表示します。保存操作を行った場合、経路の座標・時刻、日付、タイトル、メモなどを端末内へ保存し、一覧・全体保存の対象にします。元のGPXファイルそのものを開発者や地図サービスへアップロードしません。本アプリは端末の現在位置を取得せず、位置情報の権限を要求しません。ただし、オンライン地図には次項の外部通信があります。</p>
+<h2>3. 外部通信・他のサービスへの受け渡し</h2>
+<div class="table-wrap"><table>
+<thead><tr><th scope="col">機能・送信先</th><th scope="col">送信・受け渡しする情報と目的</th></tr></thead>
+<tbody>
+<tr><th scope="row">ニュース<br>Yahoo!ニュース（LY Corporation）</th><td>メイン画面のニュース表示・更新のため、公式RSSを取得します。画面表示中に自動更新される場合があります。接続先にはIPアドレス、アプリのUser-Agent、要求先、通信時刻などの通常の通信情報が伝わります。ユーザーのメモやニュースへのコメントは送信しません。見出しを開くと、外部ブラウザで記事サイトへ接続します。</td></tr>
+<tr><th scope="row">天気<br>気象庁</th><td>ユーザーが手動で選んだ地域の地域コードを含むURLで予報を取得します。画面表示・更新に伴うIPアドレス、User-Agent、通信時刻などが伝わります。GPSや端末の現在地を使いません。天気へのコメントは送信しません。</td></tr>
+<tr><th scope="row">GPXのオンライン地図<br>OpenStreetMap Foundation</th><td><code>tile.openstreetmap.org</code>から、表示する範囲とズームに対応する地図画像を取得します。表示範囲を示すタイル番号、IPアドレス、User-Agentなどが伝わり、タイル番号から閲覧中の地域・地点を推測できる場合があります。経路に合わせて地図を表示するため、これはGPXの移動場所に関する情報の一部を外部へ伝えることにもなります。GPX全体、記録のタイトル・メモ、時刻の一覧は送信しません。地図を表示しなければ、この地図通信は行われません。</td></tr>
+<tr><th scope="row">任意の開発支援購入<br>Google Play</th><td>Google Play版では、チップとして一度きりの任意のアプリ内購入を利用できます。起動・画面表示などに伴い購入状態の確認を行う場合があります。Billing Libraryは商品ID、購入状態、購入トークン、アプリ情報などをGoogle Playと処理します。購入済みかどうかを端末内に保存します。Google Playは取引・決済やサービス提供に必要な情報、および端末・診断情報等を自身の方針に従って処理する場合があります。アプリは決済用カード番号を取得せず、購入トークンを開発者の独自サーバーへ送信しません。購入しなくても全体保存を含む機能を利用できます。</td></tr>
+<tr><th scope="row">写真選択・カメラ・Google Lens</th><td>ユーザーが選ぶシステムの写真ピッカー、Googleフォト、ファイル提供アプリ、カメラアプリを利用します。Google Lensで文字認識する操作では、選択した画像をLensまたは選択した画像アプリへ共有します。外部アプリが画像をクラウドへ送信する場合があります。本アプリ自身が内部OCR・AIサーバーへ画像を自動送信する機能はありません。</td></tr>
+<tr><th scope="row">保存・共有・PDF印刷</th><td>ユーザーが指定した保存先、共有先、Android印刷サービスや印刷アプリへ、選択した画像・記録・音声・動画・PDF・バックアップなどを渡します。Googleドライブ等のクラウド保存先を選ぶと、そのサービスを通じてファイルがアップロードされる場合があります。共有したファイルの扱いは送信先の方針・設定に従います。</td></tr>
+<tr><th scope="row">外部ブラウザ・URL・番組表</th><td>ニュース、気象庁、番組表、ユーザーが入力したURLなどを開く場合、外部ブラウザと接続先サイトがIPアドレス、URL、Cookie等をそれぞれの方針に従って扱います。本アプリ内のコメントが、そのサイトへ自動投稿されることはありません。</td></tr>
+<tr><th scope="row">メモに貼り付けた外部コンテンツ</th><td>貼り付けたHTMLに外部の画像URL等が含まれる場合、編集画面がそのURLのコンテンツを取得することがあります。その接続先へIPアドレス、要求したURL、WebViewのUser-Agentなどが伝わる場合があります。記録全体を開発者へ送信するものではありませんが、機微な情報を含む外部URLの貼り付けにはご注意ください。</td></tr>
+<tr><th scope="row">お問い合わせ</th><td>メールを送った場合、メールアドレスとユーザーが送付した本文・添付を、開発者が問い合わせ対応のため受け取ります。機微な記録やバックアップを問い合わせメールへ添付する必要はありません。</td></tr>
+</tbody></table></div>
+<p>外部のニュース・天気・地図取得にはHTTPSを使用します。外部ブラウザでユーザー自身が開くURLや、ユーザーが選択したアプリ・保存サービスの通信方法は、それぞれの提供者によります。</p>
+<p>第三者の情報の取り扱いについては、<a href="https://www.lycorp.co.jp/ja/company/privacypolicy/">LINEヤフーのプライバシーポリシー</a>、<a href="https://www.jma.go.jp/jma/kishou/info/privacypolicy.html">気象庁のプライバシーポリシー</a>、<a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundationのプライバシーポリシー</a>、<a href="https://policies.google.com/privacy">Googleのプライバシーポリシー</a>もご確認ください。開発者は第三者サービスの保管期間や削除を管理できません。</p>
+<h2>4. 権限とユーザーによる選択</h2>
+<ul>
+<li><strong>マイク：</strong>録音のために、Androidの許可を求めます。</li>
+<li><strong>カレンダーの読み取り・書き込み：</strong>予定の表示・登録・編集・削除と同期連携のために許可を求めます。</li>
+<li><strong>通知、アラーム、ロック画面のアラーム表示：</strong>睡眠アラーム、録音・再生中のサービスなどに使用します。OSのバージョンによって通知・正確なアラーム・全画面通知等の許可や特別な設定を使用します。</li>
+<li><strong>フォアグラウンドサービス、起動完了の受信、スリープ抑止、音声・振動の制御：</strong>ユーザーが開始した録音・再生や、設定したアラームの維持・通知のために使用します。</li>
+<li><strong>インターネット・接続状態・Google Play課金：</strong>前項に説明した通信と購入処理に使用します。</li>
+</ul>
+<p>許可を必要とする機能は、該当する許可が得られないと利用できない場合があります。権限はAndroidのアプリ設定で変更できます。写真やファイルはユーザーが選択した範囲を使用し、カメラ撮影は外部カメラアプリへ依頼します。位置情報、電話帳、SMS、通話履歴、身体活動へのアクセス権限は要求しません。</p>
+<h2>5. 保存場所・セキュリティ・バックアップ</h2>
+<p>通常の記録と取り込んだメディアは、主にAndroidのアプリ専用領域に保存し、OSのアプリ間アクセス制御を利用します。<strong>本アプリ独自のデータベース暗号化、記録のパスワード保護、バックアップの暗号化は実装していません。</strong>本アプリはAndroidの自動アプリバックアップを無効にしていますが、ユーザーが選んで書き出すファイルや、カレンダー・写真提供アプリなどの同期設定は別です。</p>
+<p>全体保存ファイルには、入力した健康・金融・家族等の記録、写真、保存したGPXの経路などの機微な内容が含まれます。ZIPによる圧縮は暗号化ではありません。保存先・共有先を確認し、必要に応じて暗号化された保存サービスや端末の画面ロック等を利用してください。</p>
+<p><strong>ボイスレコーダーと動画の記録・ファイルは、現在の全体保存には含まれません。</strong>必要な音声・動画は、それぞれの画面のファイル保存機能を使用してください。書き出したファイルはアプリの専用領域外にも残るため、他の人がアクセスできる場所への保存には注意してください。</p>
+<h2>6. 保管期間と削除</h2>
+<ul>
+<li>保存した記録・設定・取り込んだメディアは、原則としてユーザーが削除するか、Androidのアプリデータ消去またはアンインストールを行うまで端末内に保管されます。期限による記録の自動削除はありません。</li>
+<li>削除ボタンがある項目は、その画面から個別に削除できます。すべてのアプリ専用データを削除する場合は、Androidの「設定」から本アプリの「ストレージを消去／データを削除」を行うか、アンインストールしてください。キャッシュの削除だけでは保存済み記録はすべて消えません。</li>
+<li>バックアップ、PDF、画像の書き出し、個別保存した音声・動画、元の取り込みファイル、共有先が保持したコピーは、アプリの記録削除やアンインストールでは削除されません。ファイル管理アプリや保存先・共有先サービスで別途削除してください。</li>
+<li>同期先のカレンダー情報やGoogle Playの購入・取引記録は、アプリのデータ消去だけでは削除されません。該当するカレンダーサービス・Googleの管理画面やサポートをご利用ください。</li>
+<li>問い合わせメールは、対応と必要な記録管理の範囲で保管します。開発者が受け取った問い合わせ内容の削除を希望する場合は、連絡先へお申し出ください。法令上必要な情報を除き、保管の必要がなくなった情報は削除します。開発者は、ユーザー端末や第三者サービスの記録を遠隔で削除できません。</li>
+</ul>
+<p>本アプリには開発者が管理するユーザーアカウントがないため、開発者アカウントの退会手続きはありません。Google Play等の外部アカウントは各提供者の手続きに従います。</p>
+<h2>7. 子どもや他の方の情報</h2>
+<p>子供・家族の情報を管理する機能がありますが、子どもから開発者へ個人情報を送らせるサービスではありません。保護者等が子どもや家族の情報を入力する場合や、同僚など第三者の情報を記録する場合は、必要な同意・権限を確認し、適切に管理してください。</p>
+<h2>8. ポリシーの変更・お問い合わせ</h2>
+<p>機能や情報の取り扱いを変更する場合は、本ページと最終更新日を更新します。ご不明な点や開発者が受け取った情報に関するお問い合わせは、<strong>湊大典（ab25cq）</strong>、<a href="mailto:ab25cq@gmail.com">ab25cq@gmail.com</a>へご連絡ください。</p>
+</section>
+<section id="en" lang="en">
+<h2>Privacy Policy — Personal Lifelog 2</h2>
+<p>Android package: <code>com.ab25cq.lifelog</code>. Developer: Daisuke Minato (湊大典 / ab25cq). Privacy contact: <a href="mailto:ab25cq@gmail.com">ab25cq@gmail.com</a>. Last updated: October 29, 2026.</p>
+<h3>Purpose and local records</h3>
+<p>This app helps you record and review everyday life, health, family, work, finances and hobbies. There is no developer-operated app account or login. The developer does not operate a server that receives your journals, health records, photos, recordings or imported files automatically. The app contains no advertising, analytics or crash-reporting SDK. Your records are not sold or used by the developer for advertising profiles. Local storage does not mean that the app has no network connections: the exceptions are described below.</p>
+<p>Information you choose to enter includes notes, questions and answers, events, tasks, calendars, work and chore assignments; names, birthdays, ages, contact details, addresses, personality, religion, relationships, education and job history of yourself or other people; health information such as sleep, awakenings, weight, blood pressure, pulse, temperature, excretion, skin, injuries, medication, symptoms, medical visits, exercise, fluids and care plans; and purchase, bank-account, insurance and expense information. These are used for saving, editing, calculations, timelines, reminders, PDFs and printing. Not all fields are required. Memo edits are saved locally when switching apps and at certain lifecycle events. No bank connection or automatic payment is made using financial details you enter. The app is not a medical device and does not diagnose, treat, cure or prevent a medical condition. Consult a qualified healthcare professional for medical decisions.</p>
+<p>The app handles photos, documents, videos, backup files and clipboard content that you select, import or paste. The microphone is used after you start recording and grant permission. Audio, recording date, duration, waveform and notes are stored locally. Recording may continue in the background using a foreground service and notification; stop it using the recording screen or notification controls. Please respect other people's privacy and applicable recording laws. With calendar permission, the app reads and changes events through Android's Calendar Provider and may request synchronization. Events in a Google or other synchronized calendar may be sent to that calendar provider under your account settings. The app does not read your address book, SMS or call history.</p>
+<h3>Health Connect export files and GPX</h3>
+<p>You may select a Health Connect export ZIP to import daily step totals into a monthly table. If there are multiple data sources, you choose the source to aggregate. This is file import, not a Health Connect API connection or continuous activity sensing. The app does not request Health Connect health-data permissions or ACTIVITY_RECOGNITION. The export database is temporarily extracted to private cache and may contain other health data; those other records are not imported as app health records. Temporary files are deleted during normal completion/cancellation. Abnormal termination can leave cached files, removable in Android settings. The original ZIP is not modified. Imported daily totals are included in full backups. Health data is not used for advertising, credit decisions, insurance underwriting or sale.</p>
+<p>GPX files are parsed locally to display routes and a time graph. Saving a route stores its coordinates, timestamps, date, title and notes locally and includes them in timelines and full backups. The complete GPX file is not uploaded. The app does not obtain your current location or request device location permission. Online map requests nevertheless disclose the viewed area as described below.</p>
+<h3>External connections and sharing</h3>
+<ul>
+<li><strong>Yahoo! News / LY Corporation:</strong> the home news panel downloads the official RSS feed, including automatic refresh while displayed. The provider receives normal network information such as IP address, requested URL, User-Agent and request time. Your notes and comments are not sent. Opening a headline launches the external browser.</li>
+<li><strong>Japan Meteorological Agency:</strong> forecast requests include a manually selected area's code, IP address, User-Agent and other connection information. GPS/current location is not used. Weather comments are not uploaded.</li>
+<li><strong>OpenStreetMap Foundation:</strong> map tiles are fetched from <code>tile.openstreetmap.org</code>. Tile coordinates/zoom, IP address, User-Agent and connection information disclose the viewed area and can reveal places associated with your GPX route. The full route file, notes, titles and list of timestamps are not sent. No map requests are made when no map is being displayed.</li>
+<li><strong>Google Play Billing:</strong> the Play edition offers an optional, one-time developer support purchase. Purchase status may be checked when the app/screens open. Product IDs, purchase state, purchase tokens and app information are handled through Google Play; the app stores the owned/not-owned state locally. Google handles payment and transaction information and may process device or diagnostic information under its own policies. The app does not obtain payment-card numbers or send purchase tokens to a developer backend. Full backup and other features can be used without purchasing.</li>
+<li><strong>Photo/file providers, camera and Google Lens:</strong> you choose files via Android's picker, Google Photos or another provider, and camera capture is delegated to a camera app. Choosing Lens recognition shares the selected image with Lens or your selected image app, which may use cloud processing. This app does not automatically upload images to an internal OCR/AI server.</li>
+<li><strong>Export, backup, sharing and printing:</strong> selected files or records are passed to the destination you choose, including storage providers, sharing apps, Android print services and printer apps. Choosing a cloud destination such as Google Drive may upload the file through that service.</li>
+<li><strong>External links and TV listings:</strong> your browser and destination website handle the opened URL, IP address, cookies and other information under their policies. Your saved comments are not automatically posted to news, weather or TV sites.</li>
+<li><strong>External content pasted into notes:</strong> HTML containing external image URLs or similar resources may cause the editing screen to request those resources. The destination may receive your IP address, requested URL and WebView User-Agent. This does not upload your entire note to the developer, but consider the sensitivity of URLs you paste.</li>
+<li><strong>Support email:</strong> if you email the developer, your email address, message and any attachments are received for responding to your request. You do not need to attach sensitive records or a backup.</li>
+</ul>
+<p>News, weather and map downloads use HTTPS. Connections made by your chosen external browser, apps and storage providers are governed by those services. See the privacy policies of <a href="https://www.lycorp.co.jp/ja/company/privacypolicy/">LY Corporation</a>, the <a href="https://www.jma.go.jp/jma/kishou/info/privacypolicy.html">Japan Meteorological Agency</a>, <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation</a> and <a href="https://policies.google.com/privacy">Google</a>. The developer does not control third-party retention or deletion.</p>
+<h3>Permissions and security</h3>
+<p>Microphone permission is used for recording; read/write calendar permission for events; notifications, exact alarms, full-screen alarm presentation, foreground services, boot completion, wake locks, audio and vibration controls for recording/playback and scheduled alarms. Some permissions/settings depend on the Android version. Internet, network-state and billing permissions support the connections above. You can change permissions in Android settings; affected features may then be unavailable. Selected photos/files are accessed through user choices, without a permission to read your entire photo library. Device location, contacts, SMS, call-log and physical-activity permissions are not requested.</p>
+<p>Records and imported media are mainly stored in Android's app-private storage under OS access controls. <strong>The app does not implement its own database encryption, record-password lock or encrypted backups.</strong> Android automatic app backup is disabled for this app, but that does not disable calendar/provider synchronization or files you deliberately export. Full backups can contain health, financial and family information, images and saved GPX coordinates. ZIP compression is not encryption. Choose storage/sharing destinations carefully and use appropriate device locks or encrypted storage.</p>
+<p><strong>Voice-recorder and video records/files are excluded from current full backups.</strong> Export needed audio/video files separately from their own screens. Exported files may remain outside app-private storage.</p>
+<h3>Retention and deletion</h3>
+<p>Records, settings and imported media normally remain locally until you delete them, clear app storage/data in Android settings, or uninstall the app; records do not expire automatically. Use individual delete controls where provided. Clearing cache alone does not delete all saved records. Exported backups, PDFs, images, audio/video, original import files and copies held by sharing recipients are not removed by deleting an app record or uninstalling. Delete them separately through the file manager or destination service. Synced calendar data and Google Play transaction records also require the respective provider's management/support options.</p>
+<p>Support correspondence is retained for responding and necessary record management. You can request deletion of information sent to the developer using the privacy contact; information no longer needed will be deleted, except where legal retention is required. The developer cannot remotely delete data on your device or in third-party services. No developer-operated app account exists to close; external accounts are managed by their providers.</p>
+<h3>Other people, children and updates</h3>
+<p>Family/child features let users such as parents record information; they are not a service for children to send personal data to the developer. Obtain any necessary consent or authority before recording information about children, family, colleagues or others. Changes to the app's data handling will be reflected here with an updated date. Contact Daisuke Minato (湊大典 / ab25cq) at <a href="mailto:ab25cq@gmail.com">ab25cq@gmail.com</a> for privacy questions.</p>
+</section>
+</main></body></html>
