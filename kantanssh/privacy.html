@@ -1,0 +1,38 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>簡単ssh Privacy Policy</title><style>body{max-width:800px;margin:40px auto;padding:0 20px;font:17px/1.7 system-ui}pre{white-space:pre-wrap;font:inherit}a{color:#065fcc}</style><main><pre>簡単ssh プライバシーポリシー
+最終更新日：2026年11月20日
+
+1. アプリについて
+簡単sshは、利用者が指定するSSH/SFTPサーバーに接続するiPhone用クライアントです。アプリ独自のアカウント登録は不要です。広告・アクセス解析SDKは組み込んでおらず、開発者の収集サーバーに接続情報、秘密鍵、ファイル、端末出力を送信する機能はありません。
+
+2. 端末内で扱う情報
+接続先の名前、ホスト、ポート、ユーザー名、開始フォルダー、認証方式は、接続先を保存するために端末内へ記録します。保存したパスワード、秘密鍵、保存を選択したパスフレーズ、および信頼したサーバーのホスト鍵は、端末限定・ロック解除時に利用可能なキーチェーンに格納します。秘密鍵やパスワードは接続先設定のJSONファイルには含めません。保存しない認証情報は接続操作のためにメモリで扱います。
+
+3. 接続先への送信
+接続すると、利用者が指定したサーバーへSSH/SFTPで通信します。サーバー側には接続元IPアドレス、認証に必要な情報、入力したコマンド、アップロードを選択したファイルなどが渡ります。パスワード認証時のパスワードは暗号化されたSSH接続内で送信します。公開鍵認証の秘密鍵とそのパスフレーズをサーバーに送信することはありません。接続先サーバーでの記録・保管・利用は、そのサーバーの運用とポリシーに従います。
+
+4. ファイル、端末表示、クリップボード
+ファイルへのアクセスは利用者が選んだシステムのファイル選択画面を通じて行います。ダウンロードしたファイルはアプリの一時領域に置き、共有画面を閉じると削除します。「ファイルに保存」などで書き出したファイルは保存先で管理してください。端末表示は接続中のメモリで保持します。コピーやペーストは利用者の操作に応じて行います。アプリはバックグラウンドでクリップボードを収集しません。
+
+5. 情報の削除
+接続先を削除すると、その接続先の設定と保存済みパスワード・秘密鍵・パスフレーズを削除します。保存する設定をオフにして保存し直すことでも、該当する保存済み認証情報を削除できます。信頼したホスト鍵は複数の接続先で共有されるため、接続設定の「保存したホスト鍵を削除」から別途削除できます。キーチェーンの情報がアプリの再インストール後も残る場合があるため、必要な情報はアプリ内で削除してください。
+サーバーのファイルをアプリで削除すると、接続先のファイル自体が削除されます。書き出したファイルやサーバーのログ、バックアップなどは、その保存先で管理・削除してください。OSの端末バックアップや選択したクラウド保存先の取り扱いは、Appleおよび保存先サービスの設定とポリシーに従います。
+
+6. お問い合わせ
+お問い合わせメールはご質問への対応に利用します。秘密鍵、パスワード、パスフレーズ、機密ファイルを添付する必要はありません。
+連絡先：ab25cq@gmail.com
+
+Privacy Policy — Kantan SSH
+Last updated: November 20, 2026
+
+Kantan SSH connects to SSH/SFTP servers selected by you. It does not require an app-service account, include advertising or analytics SDKs, or send your connection profiles, private keys, files, or terminal output to a developer-operated collection server.
+
+Connection profiles are stored on your device. Passwords, private keys, optional saved passphrases, and trusted host keys use device-only Keychain storage accessible while the device is unlocked. Credentials are not stored in the profile JSON. Unsaved credentials are held in memory for your connection.
+
+When you connect, your chosen server receives your source IP address, the information required for authentication, commands you type, and files you choose to upload over SSH/SFTP. Password authentication sends the password within the encrypted SSH connection. Public-key authentication does not send your private key or its passphrase to the server. Server-side logging and retention are controlled by the server operator.
+
+Files are accessed through system pickers. Downloads use temporary app storage and are removed when you dismiss the sharing screen; manage files you export at their destinations. Terminal output is held in memory for the session. Clipboard access follows your copy and paste actions; there is no background clipboard collection.
+
+Deleting a connection removes its saved profile and credentials. You can also disable credential saving and save the connection again. Trusted host keys are shared by endpoint and can be deleted separately in the connection settings. Keychain items may persist after reinstalling the app, so use the in-app deletion controls when needed. Deleting a remote file removes the file on your server. Exported files, server logs, backups, and OS/cloud storage follow the retention rules of their respective services.
+
+Support emails are used to answer your inquiry. Do not send private keys, passwords, passphrases, or sensitive files. Contact: ab25cq@gmail.com
+</pre></main></html>
